@@ -577,19 +577,46 @@ def render_as_core(
             zorder=3
         )
 
-    # 5. Add Labels for Top Core ASes
-    top_labeled = sorted(nodes.values(), key=lambda n: n.cone_size, reverse=True)[:10]
-    for n in top_labeled:
-        ax.text(
-            n.x, n.y + 0.025,
-            f"{n.name}\n(AS{n.asn})",
-            color="#ffffff",
-            fontsize=7,
+    # 5. Add Radial Callout Annotations for Top Core ASes (prevents text collision at center)
+    top_labeled = sorted(nodes.values(), key=lambda n: n.cone_size, reverse=True)[:6]
+    num_labels = len(top_labeled)
+    for idx, n in enumerate(top_labeled):
+        # Distribute callout boxes evenly around an orbit ring at r=0.28
+        callout_angle = (2.0 * math.pi * idx / max(num_labels, 1)) - (math.pi / 2.0)
+        callout_r = 0.28
+        cx = callout_r * math.cos(callout_angle)
+        cy = callout_r * math.sin(callout_angle)
+        
+        # Display clean short name
+        display_name = n.name
+        if len(display_name) > 20:
+            display_name = display_name[:18] + ".."
+
+        if n.name == f"AS{n.asn}" or n.name.startswith(f"AS{n.asn}"):
+            label_text = f"AS{n.asn}"
+        else:
+            label_text = f"{display_name}\n(AS{n.asn})"
+
+        ax.annotate(
+            label_text,
+            xy=(n.x, n.y),
+            xytext=(cx, cy),
+            textcoords="data",
             ha="center",
-            va="bottom",
-            weight="bold",
-            bbox=dict(boxstyle="round,pad=0.15", fc="#090d16", ec="#334155", lw=0.5, alpha=0.85),
-            zorder=4
+            va="center",
+            fontsize=5.5,
+            color="#ffffff",
+            weight="semibold",
+            bbox=dict(boxstyle="round,pad=0.2", fc="#090d16", ec="#38bdf8", lw=0.6, alpha=0.92),
+            arrowprops=dict(
+                arrowstyle="-|>",
+                color="#38bdf8",
+                lw=0.6,
+                alpha=0.65,
+                mutation_scale=6,
+                connectionstyle="arc3,rad=0.08"
+            ),
+            zorder=5
         )
 
     ax.set_xlim(-1.25, 1.25)
