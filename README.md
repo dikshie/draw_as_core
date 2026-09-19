@@ -6,7 +6,7 @@ A Python implementation replicating CAIDA's macroscopic Internet topology visual
 
 ## 1. How the Script Works
 
-The visualization maps each Autonomous System (AS) onto a 2D **polar coordinate system $(r, \theta)$**, which is then converted into Cartesian coordinates $(x, y)$ for rendering.
+The visualization maps each Autonomous System (AS) onto a 2D **polar coordinate system** $(r, \theta)$, which is then converted into Cartesian coordinates $(x, y)$ for rendering.
 
 ```
                     [ 90° / +E (Asia / APNIC) ]
@@ -22,38 +22,38 @@ The visualization maps each Autonomous System (AS) onto a 2D **polar coordinate 
 ### A. Radial Coordinate ($r$): Hierarchy & Centrality
 The radial distance from the center $(0, 0)$ is determined by the **Customer Cone size** (the total number of ASes reachable through an AS's customer routes):
 
-$$
+```math
 r = 1 - \frac{\log(\text{Customer Cone Size} + 1)}{\log(\max(\text{Customer Cone Size}) + 1)}
-$$
+```
 
-* **Deep Core ($r \approx 0$):** Global Tier-1 transit providers (e.g., Lumen/Level3 AS3356, Cogent AS174, Arelion AS1299, NTT AS2914, Hurricane Electric AS6939) have massive customer cones ($>30,000$ ASes) and sit near the center.
-* **Periphery ($r \approx 1$):** Stub networks and enterprise edge ASes with customer cone of 0 are plotted at the outer circle.
+* **Deep Core** ($r \approx 0$): Global Tier-1 transit providers (e.g., Lumen/Level3 AS3356, Cogent AS174, Arelion AS1299, NTT AS2914, Hurricane Electric AS6939) have massive customer cones ($>30,000$ ASes) and sit near the center.
+* **Periphery** ($r \approx 1$): Stub networks and enterprise edge ASes with customer cone of 0 are plotted at the outer circle.
 
 ### B. Angular Coordinate ($\theta$): Geographic Longitude
 The angle $\theta$ corresponds to the geographic longitude of the AS:
 
-$$
-\theta = \lambda \cdot \frac{\pi}{180^{\circ}} \quad (\lambda \in [-180^{\circ}, +180^{\circ}])
-$$
+```math
+\theta = \lambda \cdot \frac{\pi}{180^\circ} \quad (\lambda \in [-180^\circ, +180^\circ])
+```
 
 * **Longitude Centroid:** The geographic coordinates of each AS are computed as the weighted centroid of the IP prefixes announced by that AS.
 * This arranges ASes into distinct geographic clusters around the circle:
-  * **ARIN (North America):** ~$-125^\circ$ to $-65^\circ$
-  * **LACNIC (Latin America):** ~$-80^\circ$ to $-35^\circ$
-  * **RIPE (Europe / Middle East):** ~$-10^\circ$ to $+45^\circ$
-  * **AFRINIC (Africa):** ~$10^\circ$ to $40^\circ$
-  * **APNIC (Asia-Pacific):** ~$60^\circ$ to $150^\circ$
+  * **ARIN (North America):** ~-125° to -65°
+  * **LACNIC (Latin America):** ~-80° to -35°
+  * **RIPE (Europe / Middle East):** ~-10° to +45°
+  * **AFRINIC (Africa):** ~10° to 40°
+  * **APNIC (Asia-Pacific):** ~60° to 150°
 
 ### C. Link Curvature (Quadratic Bézier Curves)
 Instead of straight lines (which create visual clutter), peering and transit links between two points $P_1(x_1, y_1)$ and $P_2(x_2, y_2)$ are rendered using quadratic Bézier curves with a control point $C(x_c, y_c)$ pulled inward toward the origin:
 
-$$
+```math
 C = k \cdot (P_1 + P_2) \quad (\text{where bend factor } k \approx 0.32)
-$$
+```
 
-$$
+```math
 B(t) = (1 - t)^2 P_1 + 2(1 - t)t C + t^2 P_2 \quad (t \in [0, 1])
-$$
+```
 
 Links connecting deep core ASes are drawn with higher opacity, while links to edge stubs are softly faded.
 
@@ -210,15 +210,15 @@ Using the country filter (`-c ID`), the visualizer extracts domestic Indonesian 
 * **Active Indonesian ASes in Graph:** **711 ASes** (out of ~3,900 APNIC delegations)
 * **Domestic Interconnect Links:** **2,029 active BGP peering and transit relationships**
 * **Prominently Highlighted Networks:**
-  * **AS7713 (Telkom Indonesia):** Deep national core backbone ($r = 0.000$, center). Largest domestic customer cone.
-  * **AS4761 (Indosat Ooredoo Hutchison):** Major national mobile & enterprise transit provider ($r = 0.073$, core ring).
-  * **AS24203 (XL Axiata):** Major national telecommunications provider ($r = 0.187$, core ring).
-  * **AS64302 (IDREN - Indonesia Research and Education Network):** National academic & research network ($r = 0.690$, Java sector / $107.2^\circ$E), connecting Indonesian universities including ITB.
-  * **AS7597 (APJII / IIX - Indonesia Internet Exchange):** Primary national Internet exchange point ($r = 0.936$, Java sector).
-  * **AS4796 (ITB - Institut Teknologi Bandung):** Premier higher education & research institute ($r = 1.000$, Java sector / Bandung $107.6^\circ$E).
+  * **AS7713 (Telkom Indonesia):** Deep national core backbone (`r = 0.000`, center). Largest domestic customer cone.
+  * **AS4761 (Indosat Ooredoo Hutchison):** Major national mobile & enterprise transit provider (`r = 0.073`, core ring).
+  * **AS24203 (XL Axiata):** Major national telecommunications provider (`r = 0.187`, core ring).
+  * **AS64302 (IDREN - Indonesia Research and Education Network):** National academic & research network (`r = 0.690`, Java sector / 107.2°E), connecting Indonesian universities including ITB.
+  * **AS7597 (APJII / IIX - Indonesia Internet Exchange):** Primary national Internet exchange point (`r = 0.936`, Java sector).
+  * **AS4796 (ITB - Institut Teknologi Bandung):** Premier higher education & research institute (`r = 1.000`, Java sector / Bandung 107.6°E).
 * **Anti-Collision Callout Engine:**
-  * Core nodes ($r < 0.35$) use dedicated radial orbit callout pins to prevent overlapping in dense inner rings.
-  * Outer edge nodes ($r \ge 0.35$) use angular-sorted, staggered radial pointers ($r = 1.08$ to $1.16$) with background callout cards to ensure labels like APJII, IDREN, and ITB remain crisp and readable without overlapping.
+  * Core nodes (`r < 0.35`) use dedicated radial orbit callout pins to prevent overlapping in dense inner rings.
+  * Outer edge nodes (`r ≥ 0.35`) use angular-sorted, staggered radial pointers (`r = 1.08` to `1.16`) with background callout cards to ensure labels like APJII, IDREN, and ITB remain crisp and readable without overlapping.
 * **Geographic Island Sectors:**
   * **Java (Red):** Dominates domestic transit volume and exchange interconnects (Jakarta, Bandung, Surabaya).
   * **Sumatra (Blue):** Batam and Medan gateway connectivity.
