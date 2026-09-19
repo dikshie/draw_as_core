@@ -116,8 +116,10 @@ CAIDA provides a GraphQL API to retrieve customer cone sizes, ranks, and organiz
 
 ## 3. Project Structure
 
-* **[`as_core.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/as_core.py)**: Main module containing the polar coordinate calculations, Bézier edge generation, sample topology generator, and high-resolution rendering pipeline.
-* **[`test_as_core.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/test_as_core.py)**: Unit tests verifying boundary math, monotonicity, geometry, and rendering pipeline.
+* **[`as_core.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/as_core.py)**: Main IPv4 AS Core module containing polar coordinate calculations, Bézier edge generation, sample topology generator, and rendering pipeline.
+* **[`as_core_IPv6.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/as_core_IPv6.py)**: IPv6 AS Core module tailored for IPv6 routing topologies, customer cones, and dominant IPv6 backbones (e.g., Hurricane Electric AS6939).
+* **[`test_as_core.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/test_as_core.py)**: Unit tests for IPv4 pipeline.
+* **[`test_as_core_IPv6.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/test_as_core_IPv6.py)**: Unit tests for IPv6 pipeline.
 * **[`as_core_2020.png`](file:///Users/dikshie/VIRTUAL/draw_as_core/as_core_2020.png)**: Rendered 300 DPI visualization output.
 
 ---
@@ -132,22 +134,34 @@ CAIDA provides a GraphQL API to retrieve customer cone sizes, ranks, and organiz
 
 ### Running Unit Tests
 ```bash
-pytest -v test_as_core.py
+# Run all IPv4 and IPv6 unit tests:
+pytest -v test_as_core.py test_as_core_IPv6.py
 ```
 
-### Generating the Visualization
+### Generating Visualizations
+
+#### IPv4 AS Core:
 ```bash
-# 1. Global AS Core visualization (from CAIDA dataset):
+# 1. Global IPv4 AS Core visualization:
 python as_core.py -i 20260901.as-rel2.txt -n 800 -o as_core_2026.png
 
-# 2. Country-specific AS Core (e.g. Indonesia - ID, US, JP, DE, SG):
+# 2. Country-specific IPv4 AS Core (e.g. Indonesia - ID):
 python as_core.py -i 20260901.as-rel2.txt -c ID -o as_core_id.png
 
 # 3. Highlight specific institutions / ASNs (e.g. ITB, IDREN, Indosat, XL Axiata, APJII, Telkom):
 python as_core.py -i 20260901.as-rel2.txt -c ID -s 4796,64302,4761,24203,7597,7713 -o as_core_id.png
+```
 
-# 4. Interactive prompt mode:
-python as_core.py
+#### IPv6 AS Core:
+```bash
+# 1. Global IPv6 AS Core visualization (featuring HE AS6939 as #1 core):
+python as_core_IPv6.py -c GLOBAL -o as_core_ipv6_global.png
+
+# 2. Country-specific IPv6 AS Core (e.g. Indonesia - ID):
+python as_core_IPv6.py -i 20260901.as-rel2.txt -c ID -o as_core_ipv6_id.png
+
+# 3. Highlight specific IPv6 institutions / ASNs:
+python as_core_IPv6.py -c ID -s 4796,64302,4761,24203,7597,7713 -o as_core_ipv6_id.png
 ```
 
 ---
