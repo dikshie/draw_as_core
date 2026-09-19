@@ -15,6 +15,15 @@ __pycache__/
 .pytest_cache/
 .coverage
 
+# CAIDA raw and extracted datasets
+*.bz2
+*.gz
+*.tar
+*.as-rel2.txt*
+*.as-rel*.txt*
+data/
+*.txt
+
 # Internal tool metadata
 .agents/
 .rtk/

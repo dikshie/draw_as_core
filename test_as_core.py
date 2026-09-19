@@ -8,7 +8,11 @@ from as_core import (
     calculate_angle,
     polar_to_cartesian,
     compute_bezier_curve,
+    compute_customer_cones,
+    load_caida_as_rel,
+    infer_rir_and_longitude,
     prepare_graph_coordinates,
+    build_topology_from_caida,
     generate_sample_2020_topology,
     render_as_core
 )
@@ -78,12 +82,62 @@ def test_compute_bezier_curve():
     assert math.isclose(bx[-1], p2[0], abs_tol=1e-5)
     assert math.isclose(by[-1], p2[1], abs_tol=1e-5)
     
-    # Midpoint of straight chord is (0.5, 0.5) distance = ~0.707
-    # Midpoint of curved spline should bend closer to the center (0,0)
     mid_idx = num_pts // 2
     chord_mid_dist = math.sqrt(0.5**2 + 0.5**2)
     curve_mid_dist = math.sqrt(bx[mid_idx]**2 + by[mid_idx]**2)
     assert curve_mid_dist < chord_mid_dist
+
+
+def test_compute_customer_cones():
+    # Tree: 1 -> 2 -> 3
+    #            1 -> 4
+    # Cone of 1 = {2, 3, 4} -> size 3
+    # Cone of 2 = {3} -> size 1
+    # Cone of 3 = 0, Cone of 4 = 0
+    customer_graph = {
+        1: [2, 4],
+        2: [3]
+    }
+    cones = compute_customer_cones(customer_graph)
+    assert cones[1] == 3
+    assert cones[2] == 1
+
+
+def test_load_caida_as_rel(tmp_path):
+    sample_content = """# CAIDA format sample
+# provider|customer|-1|source
+100|200|-1|bgp
+100|300|-1|bgp
+200|400|-1|bgp
+300|400|0|bgp
+"""
+    file_path = str(tmp_path / "sample.as-rel2.txt")
+    with open(file_path, "w") as f:
+        f.write(sample_content)
+
+    customer_graph, edges = load_caida_as_rel(file_path)
+    assert len(edges) == 4
+    assert customer_graph[100] == [200, 300]
+    assert customer_graph[200] == [400]
+    
+    cones = compute_customer_cones(customer_graph)
+    assert cones[100] == 3  # 200, 300, 400
+
+
+def test_infer_rir_and_longitude():
+    # Well-known ASN
+    name, rir, lon = infer_rir_and_longitude(3356)
+    assert "Level 3" in name or "Lumen" in name
+    assert rir == "ARIN"
+    assert lon == -105.0
+
+    # APNIC range
+    _, apnic_rir, apnic_lon = infer_rir_and_longitude(4609)
+    assert apnic_rir == "APNIC"
+
+    # RIPE range
+    _, ripe_rir, ripe_lon = infer_rir_and_longitude(32000)
+    assert ripe_rir == "RIPE"
 
 
 def test_prepare_graph_coordinates():
@@ -107,4 +161,4 @@ def test_render_as_core_integration(tmp_path):
     fig = render_as_core(nodes, edges, output_path=out_file, dpi=100)
     assert fig is not None
     assert os.path.exists(out_file)
-    assert os.path.getsize(out_file) > 10000  # Non-trivial image generated
+    assert os.path.getsize(out_file) > 10000
