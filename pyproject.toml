@@ -1,0 +1,27 @@
+[project]
+name = "draw-as-core"
+version = "0.1.0"
+description = "CAIDA-style macroscopic Internet topology and AS Core visualizer (IPv4 & IPv6)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "matplotlib>=3.7.0",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.4.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["test_as_core.py", "test_as_core_IPv6.py"]

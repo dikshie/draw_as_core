@@ -87,6 +87,7 @@ curl -s "https://www.peeringdb.com/api/net?asn=7713" | jq '.data[0] | {name, cit
 import requests
 import geoip2.database
 
+
 def get_asn_longitude_centroid(asn: int, geoip_db_path: str = "GeoLite2-City.mmdb") -> float:
     """Calculates the prefix-weighted longitude centroid for an ASN."""
     url = f"https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS{asn}"

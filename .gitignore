@@ -11,9 +11,11 @@ __pycache__/
 *$py.class
 *.so
 
-# Testing
+# Testing & Tooling
 .pytest_cache/
+.ruff_cache/
 .coverage
+.lock
 
 # CAIDA raw and extracted datasets
 *.bz2

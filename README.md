@@ -126,16 +126,23 @@ CAIDA provides a GraphQL API to retrieve customer cone sizes, ranks, and organiz
 
 ## 4. Setup & Running
 
-### Requirements
+### Requirements & Tooling
 * Python 3.10+
-* `matplotlib`
-* `numpy`
-* `pytest`
+* Managed via [`uv`](https://github.com/astral-sh/uv)
+* Linted & formatted with [`Ruff`](https://github.com/astral-sh/ruff)
+* Tested with [`pytest`](https://docs.pytest.org)
 
-### Running Unit Tests
+### Quickstart with `uv`
 ```bash
-# Run all IPv4 and IPv6 unit tests:
-pytest -v test_as_core.py test_as_core_IPv6.py
+# 1. Install dependencies including dev tools (ruff, pytest):
+uv sync --extra dev
+
+# 2. Check code quality with Ruff:
+uv run ruff check .
+uv run ruff format --check .
+
+# 3. Run unit tests across IPv4 and IPv6:
+uv run pytest -v
 ```
 
 ### Generating Visualizations
