@@ -3,8 +3,10 @@ CAIDA-Style IPv4 AS Core Visualizer.
 
 Implements the polar coordinate layout algorithm used by CAIDA to visualize
 the macroscopic Internet topology and AS Core.
-Supports loading and computing customer cones directly from CAIDA AS Relationships
-datasets (e.g. *.as-rel2.txt or *.as-rel2.txt.bz2).
+Supports:
+1. Global AS Core topology visualization.
+2. Country-specific AS Core filtering and rendering (e.g. Indonesia - ID, US, JP, DE, SG).
+3. Automatic RIR delegation fetching and offline fallback databases.
 """
 
 from dataclasses import dataclass, field
@@ -14,7 +16,7 @@ import bz2
 import gzip
 import math
 import os
-import sys
+import urllib.request
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -30,7 +32,18 @@ RIR_PALETTE = {
     "UNKNOWN": "#9ca3af"   # Muted Grey
 }
 
-# Well-known major AS names and specific longitudes
+# Regional color palette for Indonesian sectors
+ID_SECTOR_PALETTE = {
+    "Sumatra": "#3b82f6",          # Blue
+    "Java": "#ef4444",             # Red
+    "Kalimantan": "#10b981",       # Emerald Green
+    "Bali & Nusa Tenggara": "#f59e0b", # Amber
+    "Sulawesi": "#8b5cf6",         # Purple
+    "Maluku & Papua": "#ec4899",   # Pink
+    "Core / National": "#38bdf8"   # Sky Blue
+}
+
+# Well-known global major AS names
 WELL_KNOWN_ASES = {
     3356:  ("Lumen / Level 3", "ARIN", -105.0),
     174:   ("Cogent", "ARIN", -77.0),
@@ -60,6 +73,29 @@ WELL_KNOWN_ASES = {
     7575:  ("AARNet", "APNIC", 149.1),
 }
 
+# Well-known Indonesian ASes with names and island regions
+INDONESIA_WELL_KNOWN = {
+    7713:   ("Telkom Indonesia", "Java", 106.8),
+    4761:   ("Indosat Ooredoo Hutchison", "Java", 106.8),
+    17451:  ("Biznet Networks", "Java", 106.8),
+    24203:  ("XL Axiata", "Java", 106.8),
+    23947:  ("Moratelindo", "Java", 106.8),
+    7597:   ("APJII / IIX", "Java", 106.8),
+    4795:   ("CBN", "Java", 106.8),
+    55688:  ("MyRepublic ID", "Java", 106.8),
+    23693:  ("Telkomsel", "Java", 106.8),
+    9341:   ("Cyberindo Aditama (CBN)", "Java", 106.8),
+    56023:  ("Link Net / FirstMedia", "Java", 106.8),
+    45833:  ("Universitas Indonesia", "Java", 106.8),
+    45842:  ("Institut Teknologi Bandung", "Java", 107.6),
+    45839:  ("Universitas Gadjah Mada", "Java", 110.4),
+    131759: ("Batam Bintan Telko", "Sumatra", 104.0),
+    133481: ("Bali Fiber Optik", "Bali & Nusa Tenggara", 115.2),
+    136052: ("Makassar Cyber Media", "Sulawesi", 119.4),
+    138382: ("Papua Digital Net", "Maluku & Papua", 140.7),
+    136050: ("Kalimantan Network", "Kalimantan", 114.6),
+}
+
 
 @dataclass
 class ASNode:
@@ -68,6 +104,8 @@ class ASNode:
     cone_size: int
     longitude: float
     rir: str = "UNKNOWN"
+    country: str = "GLOBAL"
+    region: str = ""
     r: float = field(init=False, default=1.0)
     theta: float = field(init=False, default=0.0)
     x: float = field(init=False, default=0.0)
@@ -83,47 +121,121 @@ def infer_rir_and_longitude(asn: int) -> Tuple[str, str, float]:
         name, rir, lon = WELL_KNOWN_ASES[asn]
         return name, rir, lon
 
-    # IANA / RIR 16-bit and 32-bit allocation range heuristics
-    # AFRINIC
+    # IANA / RIR allocation range heuristics
     if (36864 <= asn <= 37887) or (327680 <= asn <= 328703):
-        rir = "AFRINIC"
-        # Africa longitude centroid ~ 20.0
-        lon = 20.0 + (hash(str(asn)) % 30) - 15.0
-    # APNIC
+        rir, lon = "AFRINIC", 20.0 + (hash(str(asn)) % 30) - 15.0
     elif (4608 <= asn <= 4864) or (7467 <= asn <= 7722) or (9216 <= asn <= 10239) or \
          (17408 <= asn <= 18431) or (23552 <= asn <= 24575) or (37888 <= asn <= 38911) or \
          (45056 <= asn <= 46079) or (55296 <= asn <= 56319) or (58368 <= asn <= 59391) or \
          (131072 <= asn <= 141311):
-        rir = "APNIC"
-        # Asia-Pacific longitude centroid ~ 105.0
-        lon = 105.0 + (hash(str(asn)) % 70) - 35.0
-    # LACNIC
+        rir, lon = "APNIC", 105.0 + (hash(str(asn)) % 70) - 35.0
     elif (27648 <= asn <= 28671) or (52224 <= asn <= 53247) or (61440 <= asn <= 62463) or \
          (262144 <= asn <= 272383):
-        rir = "LACNIC"
-        # Latin America longitude centroid ~ -55.0
-        lon = -55.0 + (hash(str(asn)) % 40) - 20.0
-    # RIPE NCC
+        rir, lon = "LACNIC", -55.0 + (hash(str(asn)) % 40) - 20.0
     elif (1257 <= asn <= 1300) or (31744 <= asn <= 32767) or (33792 <= asn <= 35839) or \
          (38912 <= asn <= 39935) or (40960 <= asn <= 45055) or (47104 <= asn <= 52223) or \
          (56320 <= asn <= 58367) or (59392 <= asn <= 61439) or (196608 <= asn <= 212991):
-        rir = "RIPE"
-        # Europe longitude centroid ~ 15.0
-        lon = 15.0 + (hash(str(asn)) % 40) - 20.0
-    # ARIN (Default for legacy early allocations and North America blocks)
+        rir, lon = "RIPE", 15.0 + (hash(str(asn)) % 40) - 20.0
     else:
-        rir = "ARIN"
-        # North America longitude centroid ~ -95.0
-        lon = -95.0 + (hash(str(asn)) % 50) - 25.0
+        rir, lon = "ARIN", -95.0 + (hash(str(asn)) % 50) - 25.0
 
     return f"AS{asn}", rir, float(lon)
 
 
+def infer_indonesia_region(asn: int) -> Tuple[str, str, float]:
+    """Infers Name, Island Region, and Longitude for Indonesian ASes."""
+    if asn in INDONESIA_WELL_KNOWN:
+        name, region, lon = INDONESIA_WELL_KNOWN[asn]
+        return name, region, lon
+
+    # Derive realistic island distribution for Indonesian ASNs
+    seed = hash(str(asn))
+    region_choice = seed % 100
+    if region_choice < 55:
+        region = "Java"
+        lon = 106.0 + (seed % 80) / 10.0  # 106 to 114
+    elif region_choice < 72:
+        region = "Sumatra"
+        lon = 95.5 + (seed % 90) / 10.0   # 95.5 to 104.5
+    elif region_choice < 82:
+        region = "Kalimantan"
+        lon = 109.0 + (seed % 75) / 10.0  # 109 to 116.5
+    elif region_choice < 90:
+        region = "Sulawesi"
+        lon = 119.5 + (seed % 50) / 10.0  # 119.5 to 124.5
+    elif region_choice < 96:
+        region = "Bali & Nusa Tenggara"
+        lon = 115.0 + (seed % 90) / 10.0  # 115 to 124
+    else:
+        region = "Maluku & Papua"
+        lon = 126.0 + (seed % 140) / 10.0 # 126 to 140
+
+    return f"AS{asn}", region, float(lon)
+
+
+def fetch_country_asns(country_code: str, cache_dir: str = "data") -> Set[int]:
+    """
+    Retrieves the set of ASNs registered in a specific country (e.g. ID, US, JP, DE).
+    Uses RIR delegated statistics with local disk caching and offline fallbacks.
+    """
+    country_code = country_code.upper()
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_file = os.path.join(cache_dir, f"delegated_{country_code}.txt")
+
+    # If cached, load from disk
+    if os.path.exists(cache_file):
+        with open(cache_file, "r", encoding="utf-8") as f:
+            return {int(line.strip()) for line in f if line.strip().isdigit()}
+
+    # Select RIR delegation source based on country
+    rir_urls = {
+        "APNIC": "https://ftp.apnic.net/stats/apnic/delegated-apnic-latest",
+        "RIPE": "https://ftp.ripe.net/ripe/stats/delegated-ripencc-latest",
+        "ARIN": "https://ftp.arin.net/pub/stats/arin/delegated-arin-extended-latest",
+        "LACNIC": "https://ftp.lacnic.net/pub/stats/lacnic/delegated-lacnic-latest",
+        "AFRINIC": "https://ftp.afrinic.net/pub/stats/afrinic/delegated-afrinic-latest",
+    }
+
+    country_to_rir = {
+        "ID": "APNIC", "JP": "APNIC", "SG": "APNIC", "AU": "APNIC", "IN": "APNIC", "CN": "APNIC",
+        "DE": "RIPE", "GB": "RIPE", "FR": "RIPE", "NL": "RIPE", "IT": "RIPE", "RU": "RIPE",
+        "US": "ARIN", "CA": "ARIN",
+        "BR": "LACNIC", "AR": "LACNIC", "CL": "LACNIC", "MX": "LACNIC",
+        "ZA": "AFRINIC", "NG": "AFRINIC", "KE": "AFRINIC", "EG": "AFRINIC"
+    }
+
+    selected_rir = country_to_rir.get(country_code, "APNIC")
+    url = rir_urls.get(selected_rir, rir_urls["APNIC"])
+
+    asns: Set[int] = set()
+    try:
+        print(f"[*] Querying {selected_rir} delegation statistics for country '{country_code}'...")
+        req = urllib.request.Request(url, headers={"User-Agent": "CAIDA-AS-Core-Visualizer/1.0"})
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            for raw_line in resp:
+                line = raw_line.decode("utf-8", errors="ignore")
+                if f"|{country_code}|asn|" in line:
+                    parts = line.strip().split("|")
+                    if len(parts) >= 5:
+                        start_asn, count = int(parts[3]), int(parts[4])
+                        for a in range(start_asn, start_asn + count):
+                            asns.add(a)
+        
+        # Cache to disk
+        with open(cache_file, "w", encoding="utf-8") as f:
+            for a in sorted(asns):
+                f.write(f"{a}\n")
+        print(f"[+] Loaded {len(asns)} ASNs for country '{country_code}'.")
+    except Exception as e:
+        print(f"[!] Warning: Remote delegation fetch skipped ({e}). Using offline database.")
+        if country_code == "ID":
+            asns = set(INDONESIA_WELL_KNOWN.keys())
+
+    return asns
+
+
 def calculate_radius(cone_size: int, max_cone: int) -> float:
-    """
-    Calculate polar radial coordinate (r) from customer cone size using CAIDA's logarithmic formula:
-    r = 1 - (log(cone + 1) / log(max_cone + 1))
-    """
+    """Calculate polar radial coordinate (r) from customer cone size."""
     if max_cone <= 0 or cone_size < 0:
         return 1.0
     cone_size = min(cone_size, max_cone)
@@ -131,8 +243,15 @@ def calculate_radius(cone_size: int, max_cone: int) -> float:
     return float(np.clip(r, 0.0, 1.0))
 
 
-def calculate_angle(longitude: float, offset_deg: float = 0.0) -> float:
-    """Calculate angular coordinate (theta in radians) from longitude in degrees [-180, 180]."""
+def calculate_angle(longitude: float, offset_deg: float = 0.0, country: str = "GLOBAL") -> float:
+    """Calculate angular coordinate (theta in radians)."""
+    if country == "ID":
+        # Linearly project Indonesia's longitude (95°E - 141°E) across the full 360° circle
+        lon_clamped = max(95.0, min(141.0, longitude))
+        ratio = (lon_clamped - 95.0) / (141.0 - 95.0)
+        theta = ratio * 2 * math.pi - math.pi / 2
+        return theta
+
     lon_norm = ((longitude + 180.0) % 360.0) - 180.0
     return math.radians(lon_norm + offset_deg)
 
@@ -148,16 +267,11 @@ def compute_bezier_curve(
     bend_factor: float = 0.35,
     num_points: int = 25
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Compute a quadratic Bézier curve between two points (p1, p2)
-    with control point pulled towards the core origin (0, 0).
-    """
+    """Compute a quadratic Bézier curve pulling inward toward the origin (0, 0)."""
     x1, y1 = p1
     x2, y2 = p2
-    
     cx = bend_factor * (x1 + x2)
     cy = bend_factor * (y1 + y2)
-    
     t = np.linspace(0, 1, num_points)
     bx = (1 - t)**2 * x1 + 2 * (1 - t) * t * cx + t**2 * x2
     by = (1 - t)**2 * y1 + 2 * (1 - t) * t * cy + t**2 * y2
@@ -165,10 +279,7 @@ def compute_bezier_curve(
 
 
 def compute_customer_cones(customer_graph: Dict[int, List[int]]) -> Dict[int, int]:
-    """
-    Computes transitive customer cone size for each provider AS in the customer DAG.
-    Customer cone is the set of all ASes reachable following provider -> customer edges.
-    """
+    """Computes transitive customer cone size for each provider AS in the customer DAG."""
     cone_sizes: Dict[int, int] = {}
     for provider in customer_graph:
         visited: Set[int] = set()
@@ -184,10 +295,7 @@ def compute_customer_cones(customer_graph: Dict[int, List[int]]) -> Dict[int, in
 
 
 def load_caida_as_rel(file_path: str) -> Tuple[Dict[int, List[int]], List[Tuple[int, int]]]:
-    """
-    Parses a CAIDA AS Relationships dataset (*.as-rel2.txt or *.as-rel2.txt.bz2).
-    Returns (customer_graph, all_edges).
-    """
+    """Parses a CAIDA AS Relationships dataset (*.as-rel2.txt or *.as-rel2.txt.bz2)."""
     customer_graph: Dict[int, List[int]] = {}
     all_edges: List[Tuple[int, int]] = []
 
@@ -207,7 +315,7 @@ def load_caida_as_rel(file_path: str) -> Tuple[Dict[int, List[int]], List[Tuple[
                 try:
                     u, v, rel = int(parts[0]), int(parts[1]), int(parts[2])
                     all_edges.append((u, v))
-                    if rel == -1:  # u is provider of v
+                    if rel == -1:
                         if u not in customer_graph:
                             customer_graph[u] = []
                         customer_graph[u].append(v)
@@ -219,17 +327,18 @@ def load_caida_as_rel(file_path: str) -> Tuple[Dict[int, List[int]], List[Tuple[
 
 def prepare_graph_coordinates(
     nodes: Dict[int, ASNode],
+    country: str = "GLOBAL",
     offset_deg: float = 0.0
 ) -> Dict[int, ASNode]:
     """Compute polar and Cartesian coordinates for all nodes."""
     if not nodes:
         return nodes
         
-    max_cone = max(node.cone_size for node in nodes.values())
+    max_cone = max((node.cone_size for node in nodes.values()), default=1)
     
     for node in nodes.values():
         node.r = calculate_radius(node.cone_size, max_cone)
-        node.theta = calculate_angle(node.longitude, offset_deg=offset_deg)
+        node.theta = calculate_angle(node.longitude, offset_deg=offset_deg, country=country)
         node.x, node.y = polar_to_cartesian(node.r, node.theta)
         
     return nodes
@@ -246,14 +355,11 @@ def build_topology_from_caida(
     print(f"[*] Reading CAIDA dataset from {file_path}...")
     customer_graph, all_edges = load_caida_as_rel(file_path)
     print(f"[*] Loaded {len(all_edges)} relationships. Calculating customer cones...")
-    
     cone_sizes = compute_customer_cones(customer_graph)
     
-    # Sort ASes by customer cone size
     sorted_ases = sorted(cone_sizes.items(), key=lambda x: x[1], reverse=True)
     selected_asns = {asn for asn, _ in sorted_ases[:top_n]}
     
-    # Always include prominent well-known ASes if present in edges
     for asn in WELL_KNOWN_ASES:
         selected_asns.add(asn)
 
@@ -269,7 +375,6 @@ def build_topology_from_caida(
             rir=rir
         )
 
-    # Filter edges between selected nodes
     induced_edges = [
         (u, v) for u, v in all_edges if u in nodes and v in nodes
     ]
@@ -278,9 +383,7 @@ def build_topology_from_caida(
 
 
 def generate_sample_2020_topology(num_stubs: int = 350) -> Tuple[Dict[int, ASNode], List[Tuple[int, int]]]:
-    """
-    Generates a realistic representative dataset for the 2020 IPv4 AS Core.
-    """
+    """Generates a realistic representative global topology."""
     nodes: Dict[int, ASNode] = {}
     for asn, (name, rir, lon) in WELL_KNOWN_ASES.items():
         cone = 42000 - len(nodes) * 1500
@@ -316,17 +419,89 @@ def generate_sample_2020_topology(num_stubs: int = 350) -> Tuple[Dict[int, ASNod
     return nodes, edges
 
 
+def build_country_topology(
+    file_path: Optional[str],
+    country_code: str = "ID",
+    top_n: int = 600
+) -> Tuple[Dict[int, ASNode], List[Tuple[int, int]]]:
+    """
+    Builds a country-specific AS Core topology from CAIDA dataset or local simulation.
+    """
+    country_code = country_code.upper()
+    country_asns = fetch_country_asns(country_code)
+
+    if file_path and os.path.exists(file_path):
+        print(f"[*] Loading CAIDA dataset from {file_path} for country '{country_code}'...")
+        customer_graph, all_edges = load_caida_as_rel(file_path)
+        cone_sizes = compute_customer_cones(customer_graph)
+    else:
+        print(f"[*] Generating simulated topology for country '{country_code}'...")
+        customer_graph = {}
+        all_edges = []
+        cone_sizes = {}
+        if country_code == "ID":
+            country_asns = set(INDONESIA_WELL_KNOWN.keys()) | set(range(131000, 131300))
+            for asn in country_asns:
+                cone_sizes[asn] = 450 if asn == 7713 else (350 if asn == 4761 else (250 if asn == 17451 else int(np.random.exponential(15))))
+                all_edges.append((asn, 7713))
+                if np.random.rand() > 0.5:
+                    all_edges.append((asn, 4761))
+
+    # Filter for country ASNs
+    valid_country_asns = {
+        asn for asn in country_asns
+        if asn in cone_sizes or any(u == asn or v == asn for u, v in all_edges)
+    }
+
+    # Sort by customer cone size
+    sorted_country_ases = sorted(
+        [(asn, cone_sizes.get(asn, 0)) for asn in valid_country_asns],
+        key=lambda x: x[1], reverse=True
+    )
+    selected_asns = {asn for asn, _ in sorted_country_ases[:top_n]}
+
+    if country_code == "ID":
+        for asn in INDONESIA_WELL_KNOWN:
+            selected_asns.add(asn)
+
+    nodes: Dict[int, ASNode] = {}
+    for asn in selected_asns:
+        cone = cone_sizes.get(asn, 0)
+        if country_code == "ID":
+            name, region, lon = infer_indonesia_region(asn)
+            rir = "APNIC"
+        else:
+            name, rir, lon = infer_rir_and_longitude(asn)
+            region = country_code
+
+        nodes[asn] = ASNode(
+            asn=asn,
+            name=name,
+            cone_size=cone,
+            longitude=lon,
+            rir=rir,
+            country=country_code,
+            region=region
+        )
+
+    # Filter internal country interconnects
+    induced_edges = [
+        (u, v) for u, v in all_edges if u in nodes and v in nodes
+    ]
+    print(f"[+] Selected {len(nodes)} {country_code} ASes and {len(induced_edges)} domestic links.")
+    return nodes, induced_edges
+
+
 def render_as_core(
     nodes: Dict[int, ASNode],
     edges: List[Tuple[int, int]],
-    output_path: str = "as_core_2020.png",
+    output_path: str = "as_core.png",
     dpi: int = 300,
-    title: str = "CAIDA IPv4 AS Core Visualization"
+    title: str = "IPv4 AS Core Visualization",
+    country: str = "GLOBAL"
 ) -> plt.Figure:
-    """
-    Renders the polar AS Core map replicating CAIDA's aesthetic and coordinate system.
-    """
-    prepare_graph_coordinates(nodes)
+    """Renders the polar AS Core map replicating CAIDA's aesthetic."""
+    prepare_graph_coordinates(nodes, country=country)
 
     fig, ax = plt.subplots(figsize=(13, 13), facecolor="#090d16")
     ax.set_facecolor("#090d16")
@@ -343,23 +518,36 @@ def render_as_core(
         )
         ax.add_patch(circle)
 
-    # 2. Geographic longitude axes
-    for angle_deg in range(0, 360, 45):
-        rad = math.radians(angle_deg)
-        ax.plot([0, 1.05 * math.cos(rad)], [0, 1.05 * math.sin(rad)],
-                color="#1e293b", linestyle=":", linewidth=0.6, alpha=0.5)
-
-    # Sector labels on perimeter
-    region_positions = [
-        ("NORTH AMERICA\n(ARIN)", math.radians(-95)),
-        ("EUROPE\n(RIPE)", math.radians(15)),
-        ("AFRICA\n(AFRINIC)", math.radians(25)),
-        ("ASIA PACIFIC\n(APNIC)", math.radians(110)),
-        ("LATIN AMERICA\n(LACNIC)", math.radians(-55)),
-    ]
-    for label, theta in region_positions:
-        lx, ly = 1.12 * math.cos(theta), 1.12 * math.sin(theta)
-        ax.text(lx, ly, label, color="#64748b", fontsize=8, ha="center", va="center", weight="bold")
+    # 2. Draw sector axes & labels
+    if country == "ID":
+        # Indonesia Island Sectors
+        id_sectors = [
+            ("SUMATRA", math.radians(-60)),
+            ("JAVA", math.radians(0)),
+            ("KALIMANTAN", math.radians(60)),
+            ("BALI & NUSA TENGGARA", math.radians(120)),
+            ("SULAWESI", math.radians(180)),
+            ("MALUKU & PAPUA", math.radians(240)),
+        ]
+        for label, theta in id_sectors:
+            lx, ly = 1.12 * math.cos(theta), 1.12 * math.sin(theta)
+            ax.plot([0, 1.05 * math.cos(theta)], [0, 1.05 * math.sin(theta)],
+                    color="#1e293b", linestyle=":", linewidth=0.6, alpha=0.5)
+            ax.text(lx, ly, label, color="#64748b", fontsize=8, ha="center", va="center", weight="bold")
+    else:
+        # Global Sectors
+        global_sectors = [
+            ("NORTH AMERICA\n(ARIN)", math.radians(-95)),
+            ("EUROPE\n(RIPE)", math.radians(15)),
+            ("AFRICA\n(AFRINIC)", math.radians(25)),
+            ("ASIA PACIFIC\n(APNIC)", math.radians(110)),
+            ("LATIN AMERICA\n(LACNIC)", math.radians(-55)),
+        ]
+        for label, theta in global_sectors:
+            lx, ly = 1.12 * math.cos(theta), 1.12 * math.sin(theta)
+            ax.plot([0, 1.05 * math.cos(theta)], [0, 1.05 * math.sin(theta)],
+                    color="#1e293b", linestyle=":", linewidth=0.6, alpha=0.5)
+            ax.text(lx, ly, label, color="#64748b", fontsize=8, ha="center", va="center", weight="bold")
 
     # 3. Curved Bézier links
     for u, v in edges:
@@ -367,12 +555,16 @@ def render_as_core(
             n1, n2 = nodes[u], nodes[v]
             bx, by = compute_bezier_curve((n1.x, n1.y), (n2.x, n2.y), bend_factor=0.32, num_points=20)
             coreness = 1.0 - min(n1.r, n2.r)
-            link_alpha = 0.05 + 0.35 * (coreness ** 2)
+            link_alpha = 0.06 + 0.38 * (coreness ** 2)
             ax.plot(bx, by, color="#38bdf8", alpha=link_alpha, linewidth=0.5)
 
     # 4. Draw Nodes
     for node in nodes.values():
-        color = RIR_PALETTE.get(node.rir, RIR_PALETTE["UNKNOWN"])
+        if country == "ID":
+            color = ID_SECTOR_PALETTE.get(node.region, ID_SECTOR_PALETTE["Core / National"])
+        else:
+            color = RIR_PALETTE.get(node.rir, RIR_PALETTE["UNKNOWN"])
+
         node_size = 12.0 + 130.0 * ((1.0 - node.r) ** 2.2)
         node_alpha = 0.45 + 0.55 * (1.0 - node.r)
         ax.scatter(
@@ -385,39 +577,47 @@ def render_as_core(
             zorder=3
         )
 
-    # 5. Core Labels
-    prominent = [3356, 174, 1299, 2914, 6939, 3257, 6453, 15169, 13335, 27699, 37100]
-    for asn in prominent:
-        if asn in nodes:
-            n = nodes[asn]
-            ax.text(
-                n.x, n.y + 0.025,
-                f"{n.name}\n(AS{n.asn})",
-                color="#ffffff",
-                fontsize=7,
-                ha="center",
-                va="bottom",
-                weight="bold",
-                bbox=dict(boxstyle="round,pad=0.15", fc="#090d16", ec="#334155", lw=0.5, alpha=0.85),
-                zorder=4
-            )
+    # 5. Add Labels for Top Core ASes
+    top_labeled = sorted(nodes.values(), key=lambda n: n.cone_size, reverse=True)[:10]
+    for n in top_labeled:
+        ax.text(
+            n.x, n.y + 0.025,
+            f"{n.name}\n(AS{n.asn})",
+            color="#ffffff",
+            fontsize=7,
+            ha="center",
+            va="bottom",
+            weight="bold",
+            bbox=dict(boxstyle="round,pad=0.15", fc="#090d16", ec="#334155", lw=0.5, alpha=0.85),
+            zorder=4
+        )
 
     ax.set_xlim(-1.25, 1.25)
     ax.set_ylim(-1.25, 1.25)
     ax.set_aspect("equal")
     ax.axis("off")
 
-    legend_handles = [
-        patches.Patch(facecolor=color, edgecolor="#334155", label=rir)
-        for rir, color in RIR_PALETTE.items() if rir != "UNKNOWN"
-    ]
+    # Legend
+    if country == "ID":
+        legend_handles = [
+            patches.Patch(facecolor=col, edgecolor="#334155", label=reg)
+            for reg, col in ID_SECTOR_PALETTE.items()
+        ]
+        legend_title = "Island Regions"
+    else:
+        legend_handles = [
+            patches.Patch(facecolor=col, edgecolor="#334155", label=rir)
+            for rir, col in RIR_PALETTE.items() if rir != "UNKNOWN"
+        ]
+        legend_title = "Regional Registries"
+
     ax.legend(
         handles=legend_handles,
         loc="lower right",
         facecolor="#0f172a",
         edgecolor="#334155",
         labelcolor="#e2e8f0",
-        title="Regional Registries",
+        title=legend_title,
         title_fontsize=9,
         fontsize=8,
         framealpha=0.9
@@ -436,29 +636,50 @@ def render_as_core(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CAIDA IPv4 AS Core Visualizer")
+    parser = argparse.ArgumentParser(description="CAIDA IPv4 AS Core Visualizer (Global & Country-Level)")
     parser.add_argument("-i", "--input", help="Path to CAIDA *.as-rel2.txt or *.as-rel2.txt.bz2 file", default=None)
+    parser.add_argument("-c", "--country", help="2-letter ISO Country Code (e.g. ID, US, JP, DE, SG) or 'GLOBAL'", default=None)
     parser.add_argument("-n", "--top", help="Top N ASes to visualize by customer cone", type=int, default=700)
-    parser.add_argument("-o", "--output", help="Output PNG path", default="as_core_caida.png")
-    parser.add_argument("-t", "--title", help="Plot title", default="CAIDA IPv4 AS Core Topology")
+    parser.add_argument("-o", "--output", help="Output PNG path", default=None)
+    parser.add_argument("-t", "--title", help="Plot title", default=None)
     args = parser.parse_args()
 
-    # Automatically check for local CAIDA dataset if no argument passed
+    # Interactive prompt if user didn't pass country via CLI and is in an interactive shell
+    country = args.country
+    if country is None:
+        try:
+            user_input = input("Enter Country Code (e.g. ID for Indonesia, or press Enter for Global): ").strip()
+            country = user_input.upper() if user_input else "GLOBAL"
+        except (EOFError, KeyboardInterrupt):
+            country = "GLOBAL"
+    else:
+        country = country.upper()
+
     caida_default = "20260901.as-rel2.txt"
     if args.input is None and os.path.exists(caida_default):
         args.input = caida_default
 
-    if args.input and os.path.exists(args.input):
-        nodes, edges = build_topology_from_caida(args.input, top_n=args.top)
-        title = f"{args.title} ({os.path.basename(args.input)})"
-    else:
-        print("[!] No CAIDA dataset specified or found. Using realistic simulation...")
-        nodes, edges = generate_sample_2020_topology(num_stubs=400)
-        title = args.title
+    output_filename = args.output
+    if output_filename is None:
+        output_filename = f"as_core_{country.lower()}.png" if country != "GLOBAL" else "as_core_global.png"
 
-    print(f"[+] Rendering AS Core visualization to {args.output}...")
-    render_as_core(nodes, edges, output_path=args.output, dpi=300, title=title)
-    print(f"[✓] Visualization successfully saved to {args.output}")
+    plot_title = args.title
+    if plot_title is None:
+        plot_title = f"{country} IPv4 AS Core Topology" if country != "GLOBAL" else "CAIDA IPv4 AS Core Topology"
+
+    if country != "GLOBAL":
+        nodes, edges = build_country_topology(args.input, country_code=country, top_n=args.top)
+    else:
+        if args.input and os.path.exists(args.input):
+            from as_core import build_topology_from_caida
+            nodes, edges = build_topology_from_caida(args.input, top_n=args.top)
+        else:
+            from as_core import generate_sample_2020_topology
+            nodes, edges = generate_sample_2020_topology(num_stubs=400)
+
+    print(f"[+] Rendering AS Core visualization to {output_filename}...")
+    render_as_core(nodes, edges, output_path=output_filename, dpi=300, title=plot_title, country=country)
+    print(f"[✓] Visualization successfully saved to {output_filename}")
 
 
 if __name__ == "__main__":
