@@ -15,6 +15,11 @@ __pycache__/
 .pytest_cache/
 .coverage
 
+# Internal tool metadata
+.agents/
+.rtk/
+CLAUDE.md
+
 # OS generated
 .DS_Store
 .DS_Store?
