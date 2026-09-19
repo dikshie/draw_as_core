@@ -317,8 +317,8 @@ def render_as_core(
     )
     ax.text(
         0, -1.22,
-        "Radial position: r = 1 - log(CustomerCone + 1)/log(MaxCone + 1) | Angular position: Longitude",
-        color="#94a3b8", fontsize=8, ha="center", style="italic"
+        r"$\mathrm{Radial\ position:}\ r = 1 - \frac{\log(\mathrm{CustomerCone} + 1)}{\log(\mathrm{MaxCone} + 1)} \quad\vert\quad \mathrm{Angular\ position:}\ \theta = \mathrm{Longitude}$",
+        color="#94a3b8", fontsize=9, ha="center"
     )
 
     plt.tight_layout()

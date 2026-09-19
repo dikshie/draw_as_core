@@ -22,7 +22,9 @@ The visualization maps each Autonomous System (AS) onto a 2D **polar coordinate 
 ### A. Radial Coordinate ($r$): Hierarchy & Centrality
 The radial distance from the center $(0, 0)$ is determined by the **Customer Cone size** (the total number of ASes reachable through an AS's customer routes):
 
-$$r = 1 - \frac{\log(\text{customer\_cone\_size} + 1)}{\log(\max(\text{customer\_cone\_size}) + 1)}$$
+$$
+r = 1 - \frac{\log(\text{Customer Cone Size} + 1)}{\log(\max(\text{Customer Cone Size}) + 1)}
+$$
 
 * **Deep Core ($r \approx 0$):** Global Tier-1 transit providers (e.g., Lumen/Level3 AS3356, Cogent AS174, Arelion AS1299, NTT AS2914, Hurricane Electric AS6939) have massive customer cones ($>30,000$ ASes) and sit near the center.
 * **Periphery ($r \approx 1$):** Stub networks and enterprise edge ASes with customer cone of 0 are plotted at the outer circle.
@@ -30,7 +32,9 @@ $$r = 1 - \frac{\log(\text{customer\_cone\_size} + 1)}{\log(\max(\text{customer\
 ### B. Angular Coordinate ($\theta$): Geographic Longitude
 The angle $\theta$ corresponds to the geographic longitude of the AS:
 
-$$\theta = \lambda \cdot \frac{\pi}{180^\circ} \quad (\lambda \in [-180^\circ, +180^\circ])$$
+$$
+\theta = \lambda \cdot \frac{\pi}{180^{\circ}} \quad (\lambda \in [-180^{\circ}, +180^{\circ}])
+$$
 
 * **Longitude Centroid:** The geographic coordinates of each AS are computed as the weighted centroid of the IP prefixes announced by that AS.
 * This arranges ASes into distinct geographic clusters around the circle:
@@ -43,9 +47,13 @@ $$\theta = \lambda \cdot \frac{\pi}{180^\circ} \quad (\lambda \in [-180^\circ, +
 ### C. Link Curvature (Quadratic Bézier Curves)
 Instead of straight lines (which create visual clutter), peering and transit links between two points $P_1(x_1, y_1)$ and $P_2(x_2, y_2)$ are rendered using quadratic Bézier curves with a control point $C(x_c, y_c)$ pulled inward toward the origin:
 
-$$C = \text{bend\_factor} \times (P_1 + P_2) \quad (\text{where } \text{bend\_factor} \approx 0.32)$$
+$$
+C = k \cdot (P_1 + P_2) \quad (\text{where bend factor } k \approx 0.32)
+$$
 
-$$B(t) = (1 - t)^2 P_1 + 2(1 - t)t C + t^2 P_2 \quad (t \in [0, 1])$$
+$$
+B(t) = (1 - t)^2 P_1 + 2(1 - t)t C + t^2 P_2 \quad (t \in [0, 1])
+$$
 
 Links connecting deep core ASes are drawn with higher opacity, while links to edge stubs are softly faded.
 
