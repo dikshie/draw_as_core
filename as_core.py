@@ -83,6 +83,7 @@ INDONESIA_WELL_KNOWN = {
     7597:   ("APJII / IIX", "Java", 106.8),
     4795:   ("CBN", "Java", 106.8),
     4796:   ("ITB (Bandung)", "Java", 107.6),
+    64302:  ("IDREN", "Java", 107.2),
     55688:  ("MyRepublic ID", "Java", 106.8),
     23693:  ("Telkomsel", "Java", 106.8),
     9341:   ("Cyberindo Aditama (CBN)", "Java", 106.8),
@@ -510,7 +511,7 @@ def render_as_core(
     prepare_graph_coordinates(nodes, country=country)
 
     if country == "ID" and highlight_asns is None:
-        highlight_asns = [7713, 4761, 24203, 7597, 4796]
+        highlight_asns = [7713, 4761, 24203, 7597, 4796, 64302]
     elif highlight_asns is None:
         highlight_asns = []
 
@@ -612,7 +613,7 @@ def render_as_core(
 
     all_labeled = highlighted_nodes + top_core
     core_nodes = [n for n in all_labeled if n.r < 0.35]
-    outer_nodes = [n for n in all_labeled if n.r >= 0.35]
+    outer_nodes = sorted([n for n in all_labeled if n.r >= 0.35], key=lambda n: n.theta)
 
     # A. Core nodes distributed around orbit ring (r=0.28)
     num_core = len(core_nodes)
@@ -750,7 +751,7 @@ def main():
     parser = argparse.ArgumentParser(description="CAIDA IPv4 AS Core Visualizer (Global & Country-Level)")
     parser.add_argument("-i", "--input", help="Path to CAIDA *.as-rel2.txt or *.as-rel2.txt.bz2 file", default=None)
     parser.add_argument("-c", "--country", help="2-letter ISO Country Code (e.g. ID, US, JP, DE, SG) or 'GLOBAL'", default=None)
-    parser.add_argument("-s", "--highlight", help="Comma-separated list of ASNs to highlight (e.g. 4796,4761,24203,7597)", default=None)
+    parser.add_argument("-s", "--highlight", help="Comma-separated list of ASNs to highlight (e.g. 4796,4761,24203,7597,64302)", default=None)
     parser.add_argument("-n", "--top", help="Top N ASes to visualize by customer cone", type=int, default=700)
     parser.add_argument("-o", "--output", help="Output PNG path", default=None)
     parser.add_argument("-t", "--title", help="Plot title", default=None)
@@ -786,7 +787,7 @@ def main():
         except ValueError:
             highlight_asns = None
     elif country == "ID":
-        highlight_asns = [7713, 4761, 24203, 7597, 4796]
+        highlight_asns = [7713, 4761, 24203, 7597, 4796, 64302]
 
     if country != "GLOBAL":
         nodes, edges = build_country_topology(args.input, country_code=country, top_n=args.top, highlight_asns=highlight_asns)

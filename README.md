@@ -143,8 +143,8 @@ python as_core.py -i 20260901.as-rel2.txt -n 800 -o as_core_2026.png
 # 2. Country-specific AS Core (e.g. Indonesia - ID, US, JP, DE, SG):
 python as_core.py -i 20260901.as-rel2.txt -c ID -o as_core_id.png
 
-# 3. Highlight specific institutions / ASNs (e.g. ITB, Indosat, XL Axiata, APJII, Telkom):
-python as_core.py -i 20260901.as-rel2.txt -c ID -s 4796,4761,24203,7597,7713 -o as_core_id.png
+# 3. Highlight specific institutions / ASNs (e.g. ITB, IDREN, Indosat, XL Axiata, APJII, Telkom):
+python as_core.py -i 20260901.as-rel2.txt -c ID -s 4796,64302,4761,24203,7597,7713 -o as_core_id.png
 
 # 4. Interactive prompt mode:
 python as_core.py
@@ -199,11 +199,12 @@ Using the country filter (`-c ID`), the visualizer extracts domestic Indonesian 
   * **AS7713 (Telkom Indonesia):** Deep national core backbone ($r = 0.000$, center). Largest domestic customer cone.
   * **AS4761 (Indosat Ooredoo Hutchison):** Major national mobile & enterprise transit provider ($r = 0.073$, core ring).
   * **AS24203 (XL Axiata):** Major national telecommunications provider ($r = 0.187$, core ring).
+  * **AS64302 (IDREN - Indonesia Research and Education Network):** National academic & research network ($r = 0.690$, Java sector / $107.2^\circ$E), connecting Indonesian universities including ITB.
   * **AS7597 (APJII / IIX - Indonesia Internet Exchange):** Primary national Internet exchange point ($r = 0.936$, Java sector).
   * **AS4796 (ITB - Institut Teknologi Bandung):** Premier higher education & research institute ($r = 1.000$, Java sector / Bandung $107.6^\circ$E).
 * **Anti-Collision Callout Engine:**
   * Core nodes ($r < 0.35$) use dedicated radial orbit callout pins to prevent overlapping in dense inner rings.
-  * Outer edge nodes ($r \ge 0.35$) use staggered radial pointers ($r = 1.08$ to $1.16$) with background callout cards to ensure labels like APJII and ITB remain readable without overlapping.
+  * Outer edge nodes ($r \ge 0.35$) use angular-sorted, staggered radial pointers ($r = 1.08$ to $1.16$) with background callout cards to ensure labels like APJII, IDREN, and ITB remain crisp and readable without overlapping.
 * **Geographic Island Sectors:**
   * **Java (Red):** Dominates domestic transit volume and exchange interconnects (Jakarta, Bandung, Surabaya).
   * **Sumatra (Blue):** Batam and Medan gateway connectivity.
