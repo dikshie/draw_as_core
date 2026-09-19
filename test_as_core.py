@@ -109,18 +109,27 @@ def test_infer_indonesia_region():
 
 def test_build_country_topology():
     nodes, edges = build_country_topology(file_path=None, country_code="ID", top_n=50)
-    assert 7713 in nodes
-    assert 4761 in nodes
+    assert 7713 in nodes   # Telkom Indonesia
+    assert 4761 in nodes   # Indosat
+    assert 24203 in nodes  # XL Axiata
+    assert 7597 in nodes   # APJII / IIX
+    assert 4796 in nodes   # ITB (Bandung)
     assert len(nodes) > 0
     assert len(edges) > 0
     assert nodes[7713].country == "ID"
+    assert "ITB" in nodes[4796].name
 
 
 def test_render_as_core_country_integration(tmp_path):
     nodes, edges = build_country_topology(file_path=None, country_code="ID", top_n=30)
     out_file = str(tmp_path / "test_id_core.png")
     
-    fig = render_as_core(nodes, edges, output_path=out_file, dpi=100, country="ID", title="Indonesia Test")
+    # Highlight specific ASes including ITB, Indosat, XL, APJII
+    highlight = [7713, 4761, 24203, 7597, 4796]
+    fig = render_as_core(
+        nodes, edges, output_path=out_file, dpi=100, country="ID",
+        title="Indonesia Test", highlight_asns=highlight
+    )
     assert fig is not None
     assert os.path.exists(out_file)
     assert os.path.getsize(out_file) > 10000

@@ -76,18 +76,19 @@ WELL_KNOWN_ASES = {
 # Well-known Indonesian ASes with names and island regions
 INDONESIA_WELL_KNOWN = {
     7713:   ("Telkom Indonesia", "Java", 106.8),
-    4761:   ("Indosat Ooredoo Hutchison", "Java", 106.8),
+    4761:   ("Indosat", "Java", 106.8),
     17451:  ("Biznet Networks", "Java", 106.8),
     24203:  ("XL Axiata", "Java", 106.8),
     23947:  ("Moratelindo", "Java", 106.8),
     7597:   ("APJII / IIX", "Java", 106.8),
     4795:   ("CBN", "Java", 106.8),
+    4796:   ("ITB (Bandung)", "Java", 107.6),
     55688:  ("MyRepublic ID", "Java", 106.8),
     23693:  ("Telkomsel", "Java", 106.8),
     9341:   ("Cyberindo Aditama (CBN)", "Java", 106.8),
     56023:  ("Link Net / FirstMedia", "Java", 106.8),
     45833:  ("Universitas Indonesia", "Java", 106.8),
-    45842:  ("Institut Teknologi Bandung", "Java", 107.6),
+    45842:  ("ITB (Campus)", "Java", 107.6),
     45839:  ("Universitas Gadjah Mada", "Java", 110.4),
     131759: ("Batam Bintan Telko", "Sumatra", 104.0),
     133481: ("Bali Fiber Optik", "Bali & Nusa Tenggara", 115.2),
@@ -422,7 +423,8 @@ def generate_sample_2020_topology(num_stubs: int = 350) -> Tuple[Dict[int, ASNod
 def build_country_topology(
     file_path: Optional[str],
     country_code: str = "ID",
-    top_n: int = 600
+    top_n: int = 600,
+    highlight_asns: Optional[List[int]] = None
 ) -> Tuple[Dict[int, ASNode], List[Tuple[int, int]]]:
     """
     Builds a country-specific AS Core topology from CAIDA dataset or local simulation.
@@ -463,6 +465,9 @@ def build_country_topology(
     if country_code == "ID":
         for asn in INDONESIA_WELL_KNOWN:
             selected_asns.add(asn)
+    if highlight_asns:
+        for asn in highlight_asns:
+            selected_asns.add(asn)
 
     nodes: Dict[int, ASNode] = {}
     for asn in selected_asns:
@@ -498,10 +503,16 @@ def render_as_core(
     output_path: str = "as_core.png",
     dpi: int = 300,
     title: str = "IPv4 AS Core Visualization",
-    country: str = "GLOBAL"
+    country: str = "GLOBAL",
+    highlight_asns: Optional[List[int]] = None
 ) -> plt.Figure:
     """Renders the polar AS Core map replicating CAIDA's aesthetic."""
     prepare_graph_coordinates(nodes, country=country)
+
+    if country == "ID" and highlight_asns is None:
+        highlight_asns = [7713, 4761, 24203, 7597, 4796]
+    elif highlight_asns is None:
+        highlight_asns = []
 
     fig, ax = plt.subplots(figsize=(13, 13), facecolor="#090d16")
     ax.set_facecolor("#090d16")
@@ -567,27 +578,50 @@ def render_as_core(
 
         node_size = 12.0 + 130.0 * ((1.0 - node.r) ** 2.2)
         node_alpha = 0.45 + 0.55 * (1.0 - node.r)
+
+        # Highlighted nodes get special glowing halo
+        if node.asn in highlight_asns:
+            ax.scatter(
+                node.x, node.y,
+                color="#38bdf8",
+                s=node_size + 90.0,
+                alpha=0.35,
+                edgecolors="#ffffff",
+                linewidths=1.2,
+                zorder=4
+            )
+            node_alpha = 1.0
+            node_size = max(node_size, 35.0)
+
         ax.scatter(
             node.x, node.y,
             color=color,
             s=node_size,
             alpha=node_alpha,
-            edgecolors="#ffffff" if node.r < 0.25 else "none",
-            linewidths=0.5,
-            zorder=3
+            edgecolors="#ffffff" if (node.r < 0.25 or node.asn in highlight_asns) else "none",
+            linewidths=0.8 if node.asn in highlight_asns else 0.5,
+            zorder=5 if node.asn in highlight_asns else 3
         )
 
-    # 5. Add Radial Callout Annotations for Top Core ASes (prevents text collision at center)
-    top_labeled = sorted(nodes.values(), key=lambda n: n.cone_size, reverse=True)[:6]
-    num_labels = len(top_labeled)
-    for idx, n in enumerate(top_labeled):
-        # Distribute callout boxes evenly around an orbit ring at r=0.28
-        callout_angle = (2.0 * math.pi * idx / max(num_labels, 1)) - (math.pi / 2.0)
+    # 5. Add Callout Annotations for Top Core ASes & Highlighted ASes
+    highlighted_nodes = [nodes[asn] for asn in highlight_asns if asn in nodes]
+    top_core = [
+        n for n in sorted(nodes.values(), key=lambda n: n.cone_size, reverse=True)
+        if n not in highlighted_nodes
+    ][:4]
+
+    all_labeled = highlighted_nodes + top_core
+    core_nodes = [n for n in all_labeled if n.r < 0.35]
+    outer_nodes = [n for n in all_labeled if n.r >= 0.35]
+
+    # A. Core nodes distributed around orbit ring (r=0.28)
+    num_core = len(core_nodes)
+    for idx, n in enumerate(core_nodes):
+        callout_angle = (2.0 * math.pi * idx / max(num_core, 1)) - (math.pi / 2.0)
         callout_r = 0.28
         cx = callout_r * math.cos(callout_angle)
         cy = callout_r * math.sin(callout_angle)
-        
-        # Display clean short name
+
         display_name = n.name
         if len(display_name) > 20:
             display_name = display_name[:18] + ".."
@@ -606,17 +640,67 @@ def render_as_core(
             va="center",
             fontsize=5.5,
             color="#ffffff",
-            weight="semibold",
-            bbox=dict(boxstyle="round,pad=0.2", fc="#090d16", ec="#38bdf8", lw=0.6, alpha=0.92),
+            weight="bold" if n.asn in highlight_asns else "semibold",
+            bbox=dict(
+                boxstyle="round,pad=0.2",
+                fc="#090d16",
+                ec="#38bdf8" if n.asn in highlight_asns else "#64748b",
+                lw=0.7 if n.asn in highlight_asns else 0.5,
+                alpha=0.92
+            ),
             arrowprops=dict(
                 arrowstyle="-|>",
-                color="#38bdf8",
+                color="#38bdf8" if n.asn in highlight_asns else "#64748b",
                 lw=0.6,
-                alpha=0.65,
+                alpha=0.7,
                 mutation_scale=6,
                 connectionstyle="arc3,rad=0.08"
             ),
-            zorder=5
+            zorder=6
+        )
+
+    # B. Outer nodes (r >= 0.35, e.g. ITB AS4796, APJII AS7597)
+    for idx, n in enumerate(outer_nodes):
+        # Stagger radial distance to prevent collision between close nodes
+        callout_r = 1.08 + 0.08 * (idx % 2)
+        cx = callout_r * math.cos(n.theta)
+        cy = callout_r * math.sin(n.theta)
+
+        display_name = n.name
+        if len(display_name) > 20:
+            display_name = display_name[:18] + ".."
+
+        if n.name == f"AS{n.asn}" or n.name.startswith(f"AS{n.asn}"):
+            label_text = f"AS{n.asn}"
+        else:
+            label_text = f"{display_name}\n(AS{n.asn})"
+
+        ax.annotate(
+            label_text,
+            xy=(n.x, n.y),
+            xytext=(cx, cy),
+            textcoords="data",
+            ha="center",
+            va="center",
+            fontsize=5.5,
+            color="#ffffff",
+            weight="bold" if n.asn in highlight_asns else "semibold",
+            bbox=dict(
+                boxstyle="round,pad=0.2",
+                fc="#090d16",
+                ec="#38bdf8" if n.asn in highlight_asns else "#64748b",
+                lw=0.7 if n.asn in highlight_asns else 0.5,
+                alpha=0.92
+            ),
+            arrowprops=dict(
+                arrowstyle="-|>",
+                color="#38bdf8" if n.asn in highlight_asns else "#64748b",
+                lw=0.6,
+                alpha=0.7,
+                mutation_scale=6,
+                connectionstyle="arc3,rad=0.05"
+            ),
+            zorder=6
         )
 
     ax.set_xlim(-1.25, 1.25)
@@ -666,6 +750,7 @@ def main():
     parser = argparse.ArgumentParser(description="CAIDA IPv4 AS Core Visualizer (Global & Country-Level)")
     parser.add_argument("-i", "--input", help="Path to CAIDA *.as-rel2.txt or *.as-rel2.txt.bz2 file", default=None)
     parser.add_argument("-c", "--country", help="2-letter ISO Country Code (e.g. ID, US, JP, DE, SG) or 'GLOBAL'", default=None)
+    parser.add_argument("-s", "--highlight", help="Comma-separated list of ASNs to highlight (e.g. 4796,4761,24203,7597)", default=None)
     parser.add_argument("-n", "--top", help="Top N ASes to visualize by customer cone", type=int, default=700)
     parser.add_argument("-o", "--output", help="Output PNG path", default=None)
     parser.add_argument("-t", "--title", help="Plot title", default=None)
@@ -694,8 +779,17 @@ def main():
     if plot_title is None:
         plot_title = f"{country} IPv4 AS Core Topology" if country != "GLOBAL" else "CAIDA IPv4 AS Core Topology"
 
+    highlight_asns = None
+    if args.highlight:
+        try:
+            highlight_asns = [int(x.strip().lstrip("AS").lstrip("as")) for x in args.highlight.split(",") if x.strip()]
+        except ValueError:
+            highlight_asns = None
+    elif country == "ID":
+        highlight_asns = [7713, 4761, 24203, 7597, 4796]
+
     if country != "GLOBAL":
-        nodes, edges = build_country_topology(args.input, country_code=country, top_n=args.top)
+        nodes, edges = build_country_topology(args.input, country_code=country, top_n=args.top, highlight_asns=highlight_asns)
     else:
         if args.input and os.path.exists(args.input):
             from as_core import build_topology_from_caida
@@ -705,7 +799,7 @@ def main():
             nodes, edges = generate_sample_2020_topology(num_stubs=400)
 
     print(f"[+] Rendering AS Core visualization to {output_filename}...")
-    render_as_core(nodes, edges, output_path=output_filename, dpi=300, title=plot_title, country=country)
+    render_as_core(nodes, edges, output_path=output_filename, dpi=300, title=plot_title, country=country, highlight_asns=highlight_asns)
     print(f"[✓] Visualization successfully saved to {output_filename}")
 
 

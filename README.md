@@ -143,7 +143,10 @@ python as_core.py -i 20260901.as-rel2.txt -n 800 -o as_core_2026.png
 # 2. Country-specific AS Core (e.g. Indonesia - ID, US, JP, DE, SG):
 python as_core.py -i 20260901.as-rel2.txt -c ID -o as_core_id.png
 
-# 3. Interactive prompt mode:
+# 3. Highlight specific institutions / ASNs (e.g. ITB, Indosat, XL Axiata, APJII, Telkom):
+python as_core.py -i 20260901.as-rel2.txt -c ID -s 4796,4761,24203,7597,7713 -o as_core_id.png
+
+# 4. Interactive prompt mode:
 python as_core.py
 ```
 
@@ -190,18 +193,21 @@ The top Tier-1 backbones form the dense center of the polar visualization:
 Using the country filter (`-c ID`), the visualizer extracts domestic Indonesian Autonomous Systems and their interconnects:
 
 ### Indonesia Topology Highlights
-* **Active Indonesian ASes in Graph:** **710 ASes** (out of ~3,900 APNIC delegations)
-* **Domestic Interconnect Links:** **2,026 active BGP peering and transit relationships**
-* **National Core ($r \approx 0$):**
-  * **AS7713** (Telkom Indonesia)
-  * **AS4761** (Indosat Ooredoo Hutchison)
-  * **AS24203** (XL Axiata)
-  * **AS17451** (Biznet Networks)
-  * **AS23947** (Moratelindo)
-  * **AS7597** (APJII / Indonesia Internet Exchange - IIX)
+* **Active Indonesian ASes in Graph:** **711 ASes** (out of ~3,900 APNIC delegations)
+* **Domestic Interconnect Links:** **2,029 active BGP peering and transit relationships**
+* **Prominently Highlighted Networks:**
+  * **AS7713 (Telkom Indonesia):** Deep national core backbone ($r = 0.000$, center). Largest domestic customer cone.
+  * **AS4761 (Indosat Ooredoo Hutchison):** Major national mobile & enterprise transit provider ($r = 0.073$, core ring).
+  * **AS24203 (XL Axiata):** Major national telecommunications provider ($r = 0.187$, core ring).
+  * **AS7597 (APJII / IIX - Indonesia Internet Exchange):** Primary national Internet exchange point ($r = 0.936$, Java sector).
+  * **AS4796 (ITB - Institut Teknologi Bandung):** Premier higher education & research institute ($r = 1.000$, Java sector / Bandung $107.6^\circ$E).
+* **Anti-Collision Callout Engine:**
+  * Core nodes ($r < 0.35$) use dedicated radial orbit callout pins to prevent overlapping in dense inner rings.
+  * Outer edge nodes ($r \ge 0.35$) use staggered radial pointers ($r = 1.08$ to $1.16$) with background callout cards to ensure labels like APJII and ITB remain readable without overlapping.
 * **Geographic Island Sectors:**
   * **Java (Red):** Dominates domestic transit volume and exchange interconnects (Jakarta, Bandung, Surabaya).
   * **Sumatra (Blue):** Batam and Medan gateway connectivity.
   * **Kalimantan (Green), Bali & Nusa Tenggara (Amber), Sulawesi (Purple), Maluku & Papua (Pink):** Regional distribution clusters connected to the Java transit core.
+
 
 
