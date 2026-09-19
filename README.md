@@ -1,6 +1,11 @@
-# CAIDA IPv4 AS Core Visualizer
+# CAIDA IPv4 & IPv6 AS Core Visualizer
 
-A Python implementation replicating CAIDA's macroscopic Internet topology visualization, specifically modeled after the **[CAIDA IPv4 AS Core 2020](https://www.caida.org/projects/as-core/2020/)** graph.
+[![CI/CD Pipeline](https://github.com/dikshie/draw_as_core/actions/workflows/ci.yml/badge.svg)](https://github.com/dikshie/draw_as_core/actions/workflows/ci.yml)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+
+A high-performance Python implementation replicating CAIDA's macroscopic Internet topology visualization for both **IPv4** and **IPv6**, specifically modeled after the **[CAIDA AS Core](https://www.caida.org/projects/as-core/)** methodology.
 
 ---
 
@@ -116,11 +121,13 @@ CAIDA provides a GraphQL API to retrieve customer cone sizes, ranks, and organiz
 
 ## 3. Project Structure
 
-* **[`as_core.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/as_core.py)**: Main IPv4 AS Core module containing polar coordinate calculations, Bézier edge generation, sample topology generator, and rendering pipeline.
+* **[`as_core.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/as_core.py)**: Main IPv4 AS Core module containing polar coordinate calculations, Bézier edge generation, customer cone analysis, and rendering pipeline.
 * **[`as_core_IPv6.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/as_core_IPv6.py)**: IPv6 AS Core module tailored for IPv6 routing topologies, customer cones, and dominant IPv6 backbones (e.g., Hurricane Electric AS6939).
-* **[`test_as_core.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/test_as_core.py)**: Unit tests for IPv4 pipeline.
-* **[`test_as_core_IPv6.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/test_as_core_IPv6.py)**: Unit tests for IPv6 pipeline.
-* **[`as_core_2020.png`](file:///Users/dikshie/VIRTUAL/draw_as_core/as_core_2020.png)**: Rendered 300 DPI visualization output.
+* **[`test_as_core.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/test_as_core.py)**: Unit test suite for the IPv4 pipeline.
+* **[`test_as_core_IPv6.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/test_as_core_IPv6.py)**: Unit test suite for the IPv6 pipeline.
+* **[`pyproject.toml`](file:///Users/dikshie/VIRTUAL/draw_as_core/pyproject.toml)**: Project configuration for `uv`, `Ruff` linter/formatter, and `pytest`.
+* **[`.github/workflows/ci.yml`](file:///Users/dikshie/VIRTUAL/draw_as_core/.github/workflows/ci.yml)**: Automated CI/CD workflow running Ruff quality checks, multi-Python test matrices (3.10–3.13), and smoke builds.
+* **[`LONGITUDE.md`](file:///Users/dikshie/VIRTUAL/draw_as_core/LONGITUDE.md)**: Technical guide on ASN geolocation and prefix-weighted longitude centroid computation.
 
 ---
 
@@ -230,6 +237,19 @@ Using the country filter (`-c ID`), the visualizer extracts domestic Indonesian 
   * **Java (Red):** Dominates domestic transit volume and exchange interconnects (Jakarta, Bandung, Surabaya).
   * **Sumatra (Blue):** Batam and Medan gateway connectivity.
   * **Kalimantan (Green), Bali & Nusa Tenggara (Amber), Sulawesi (Purple), Maluku & Papua (Pink):** Regional distribution clusters connected to the Java transit core.
+
+---
+
+## 7. Visualization Gallery
+
+| Indonesia IPv4 AS Core (`as_core_id.png`) | Indonesia IPv6 AS Core (`as_core_ipv6_id.png`) |
+| :---: | :---: |
+| <img src="as_core_id.png" width="450" alt="Indonesia IPv4 AS Core"/> | <img src="as_core_ipv6_id.png" width="450" alt="Indonesia IPv6 AS Core"/> |
+
+| Global IPv4 AS Core 2026 (`as_core_2026.png`) | Global IPv6 AS Core (`as_core_ipv6_global.png`) |
+| :---: | :---: |
+| <img src="as_core_2026.png" width="450" alt="Global IPv4 AS Core"/> | <img src="as_core_ipv6_global.png" width="450" alt="Global IPv6 AS Core"/> |
+
 
 
 
