@@ -51,7 +51,7 @@ Indonesia spans **$95.0^\circ\text{E}$ (Sabang, Aceh)** to **$141.0^\circ\text{E
 | Island / Region | Longitude Span ($\lambda$) | Major Hubs / Cities | Example ASNs & Coordinates |
 | :--- | :---: | :--- | :--- |
 | **Sumatra** | $95.0^\circ\text{E} - 105.0^\circ\text{E}$ | Medan ($98.6^\circ\text{E}$), Batam ($104.0^\circ\text{E}$), Palembang ($104.7^\circ\text{E}$) | **AS131759** (Batam Bintan Telko) $\to 104.0^\circ\text{E}$ |
-| **Java** | $106.0^\circ\text{E} - 114.5^\circ\text{E}$ | Jakarta ($106.8^\circ\text{E}$), Bandung ($107.6^\circ\text{E}$), Surabaya ($112.7^\circ\text{E}$) | **AS7713** (Telkom), **AS4761** (Indosat), **AS17451** (Biznet) $\to 106.8^\circ\text{E}$ |
+| **Java** | $106.0^\circ\text{E} - 114.5^\circ\text{E}$ | Jakarta ($106.8^\circ\text{E}$), Bandung ($107.6^\circ\text{E}$), Surabaya ($112.7^\circ\text{E}$) | **AS7713** (Telkom), **AS4761** (Indosat), **AS7717** (OpenIXP), **AS17451** (Biznet) $\to 106.8^\circ\text{E}$ |
 | **Kalimantan** | $108.5^\circ\text{E} - 117.5^\circ\text{E}$ | Pontianak ($109.3^\circ\text{E}$), Balikpapan ($116.8^\circ\text{E}$), Banjarmasin ($114.6^\circ\text{E}$) | **AS136050** (Kalimantan Net) $\to 114.6^\circ\text{E}$ |
 | **Bali & Nusa Tenggara** | $114.5^\circ\text{E} - 125.0^\circ\text{E}$ | Denpasar ($115.2^\circ\text{E}$), Mataram ($116.1^\circ\text{E}$), Kupang ($123.6^\circ\text{E}$) | **AS133481** (Bali Fiber) $\to 115.2^\circ\text{E}$ |
 | **Sulawesi** | $118.5^\circ\text{E} - 125.5^\circ\text{E}$ | Makassar ($119.4^\circ\text{E}$), Manado ($124.8^\circ\text{E}$) | **AS136052** (Makassar Cyber) $\to 119.4^\circ\text{E}$ |

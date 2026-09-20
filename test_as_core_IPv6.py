@@ -103,6 +103,12 @@ def test_infer_indonesia_region():
     assert region == "Java"
     assert math.isclose(lon, 106.8, abs_tol=0.1)
 
+    # OpenIXP
+    name, region, lon = infer_indonesia_region(7717)
+    assert "OpenIXP" in name
+    assert region == "Java"
+    assert math.isclose(lon, 106.8, abs_tol=0.1)
+
     # IDREN
     name, region, lon = infer_indonesia_region(64302)
     assert "IDREN" in name
@@ -115,11 +121,13 @@ def test_build_country_topology():
     assert 4761 in nodes  # Indosat
     assert 24203 in nodes  # XL Axiata
     assert 7597 in nodes  # APJII / IIX
+    assert 7717 in nodes  # OpenIXP
     assert 4796 in nodes  # ITB (Bandung)
     assert 64302 in nodes  # IDREN
     assert len(nodes) > 0
     assert len(edges) > 0
     assert nodes[7713].country == "ID"
+    assert "OpenIXP" in nodes[7717].name
     assert "ITB" in nodes[4796].name
     assert "IDREN" in nodes[64302].name
 
@@ -128,7 +136,7 @@ def test_render_as_core_ipv6_integration(tmp_path):
     nodes, edges = build_country_topology(file_path=None, country_code="ID", top_n=30)
     out_file = str(tmp_path / "test_id_ipv6_core.png")
 
-    highlight = [7713, 4761, 24203, 7597, 4796, 64302]
+    highlight = [7713, 4761, 24203, 7597, 7717, 4796, 64302]
     fig = render_as_core(
         nodes,
         edges,

@@ -162,8 +162,8 @@ python as_core.py -i 20260901.as-rel2.txt -n 800 -o as_core_2026.png
 # 2. Country-specific IPv4 AS Core (e.g. Indonesia - ID):
 python as_core.py -i 20260901.as-rel2.txt -c ID -o as_core_id.png
 
-# 3. Highlight specific institutions / ASNs (e.g. ITB, IDREN, Indosat, XL Axiata, APJII, Telkom):
-python as_core.py -i 20260901.as-rel2.txt -c ID -s 4796,64302,4761,24203,7597,7713 -o as_core_id.png
+# 3. Highlight specific institutions / ASNs (e.g. ITB, IDREN, Indosat, XL Axiata, APJII, OpenIXP, Telkom):
+python as_core.py -i 20260901.as-rel2.txt -c ID -s 4796,64302,4761,24203,7597,7717,7713 -o as_core_id.png
 ```
 
 #### IPv6 AS Core:
@@ -175,7 +175,7 @@ python as_core_IPv6.py -c GLOBAL -o as_core_ipv6_global.png
 python as_core_IPv6.py -i 20260901.as-rel2.txt -c ID -o as_core_ipv6_id.png
 
 # 3. Highlight specific IPv6 institutions / ASNs:
-python as_core_IPv6.py -c ID -s 4796,64302,4761,24203,7597,7713 -o as_core_ipv6_id.png
+python as_core_IPv6.py -c ID -s 4796,64302,4761,24203,7597,7717,7713 -o as_core_ipv6_id.png
 ```
 
 ---
@@ -227,6 +227,7 @@ Using the country filter (`-c ID`), the visualizer extracts domestic Indonesian 
   * **AS7713 (Telkom Indonesia):** Deep national core backbone (`r = 0.000`, center). Largest domestic customer cone.
   * **AS4761 (Indosat Ooredoo Hutchison):** Major national mobile & enterprise transit provider (`r = 0.073`, core ring).
   * **AS24203 (XL Axiata):** Major national telecommunications provider (`r = 0.187`, core ring).
+  * **AS7717 (OpenIXP - Indonesia Open Internet Exchange Point):** Major national Internet exchange point located in Jakarta (`r = 0.344`, Java sector / 106.8°E).
   * **AS64302 (IDREN - Indonesia Research and Education Network):** National academic & research network (`r = 0.690`, Java sector / 107.2°E), connecting Indonesian universities including ITB.
   * **AS7597 (APJII / IIX - Indonesia Internet Exchange):** Primary national Internet exchange point (`r = 0.936`, Java sector).
   * **AS4796 (ITB - Institut Teknologi Bandung):** Premier higher education & research institute (`r = 1.000`, Java sector / Bandung 107.6°E).

@@ -80,6 +80,7 @@ INDONESIA_WELL_KNOWN = {
     24203: ("XL Axiata", "Java", 106.8),
     23947: ("Moratelindo", "Java", 106.8),
     7597: ("APJII / IIX", "Java", 106.8),
+    7717: ("OpenIXP", "Java", 106.8),
     4795: ("CBN", "Java", 106.8),
     4796: ("ITB (Bandung)", "Java", 107.6),
     64302: ("IDREN", "Java", 107.2),
@@ -519,7 +520,15 @@ def build_country_topology(
                     else (
                         350
                         if asn == 4761
-                        else (250 if asn == 17451 else int(np.random.exponential(15)))
+                        else (
+                            250
+                            if asn == 17451
+                            else (
+                                200
+                                if asn == 7717
+                                else int(np.random.exponential(15))
+                            )
+                        )
                     )
                 )
                 all_edges.append((asn, 7713))
@@ -587,7 +596,7 @@ def render_as_core(
     prepare_graph_coordinates(nodes, country=country)
 
     if country == "ID" and highlight_asns is None:
-        highlight_asns = [7713, 4761, 24203, 7597, 4796, 64302]
+        highlight_asns = [7713, 4761, 24203, 7597, 7717, 4796, 64302]
     elif highlight_asns is None:
         highlight_asns = []
 
@@ -882,7 +891,7 @@ def main():
     parser.add_argument(
         "-s",
         "--highlight",
-        help="Comma-separated list of ASNs to highlight (e.g. 4796,4761,24203,7597,64302)",
+        help="Comma-separated list of ASNs to highlight (e.g. 4796,4761,24203,7597,7717,64302)",
         default=None,
     )
     parser.add_argument(
@@ -938,7 +947,7 @@ def main():
         except ValueError:
             highlight_asns = None
     elif country == "ID":
-        highlight_asns = [7713, 4761, 24203, 7597, 4796, 64302]
+        highlight_asns = [7713, 4761, 24203, 7597, 7717, 4796, 64302]
 
     if country != "GLOBAL":
         nodes, edges = build_country_topology(
