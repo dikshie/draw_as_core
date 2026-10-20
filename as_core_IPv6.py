@@ -558,11 +558,7 @@ def build_country_topology(
                             else (
                                 180
                                 if asn == 64302
-                                else (
-                                    160
-                                    if asn == 7717
-                                    else int(np.random.exponential(12))
-                                )
+                                else (160 if asn == 7717 else int(np.random.exponential(12)))
                             )
                         )
                     )

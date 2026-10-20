@@ -144,12 +144,18 @@ CAIDA provides a GraphQL API to retrieve customer cone sizes, ranks, and organiz
 # 1. Install dependencies including dev tools (ruff, pytest):
 uv sync --extra dev
 
-# 2. Check code quality with Ruff:
-uv run ruff check .
-uv run ruff format --check .
+# 2. Lint and format code with Ruff:
+uv run ruff check .           # Check linting
+uv run ruff format --check .  # Check formatting
+uv run ruff check --fix .     # Auto-fix lint issues
+uv run ruff format .          # Apply code formatting
+
+# Or use Makefile shortcuts:
+make check                    # Run both lint and format checks
+make format                   # Apply auto-formatting and lint fixes
 
 # 3. Run unit tests across IPv4 and IPv6:
-uv run pytest -v
+uv run pytest -v              # Or: make test
 ```
 
 ### Generating Visualizations
