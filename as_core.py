@@ -32,6 +32,20 @@ RIR_PALETTE = {
     "UNKNOWN": "#9ca3af",  # Muted Grey
 }
 
+# Distinct high-contrast color palette for callout pointer arrows & label borders
+CALLOUT_ARROW_PALETTE = [
+    "#facc15",  # Yellow / Gold
+    "#f472b6",  # Pink / Rose
+    "#a78bfa",  # Lavender / Violet
+    "#34d399",  # Mint / Emerald
+    "#fb923c",  # Orange
+    "#22d3ee",  # Cyan
+    "#f87171",  # Coral Red
+    "#a3e635",  # Lime Green
+    "#e879f9",  # Fuchsia
+    "#60a5fa",  # Soft Blue
+]
+
 # Regional color palette for Indonesian sectors
 ID_SECTOR_PALETTE = {
     "Sumatra": "#3b82f6",  # Blue
@@ -795,6 +809,7 @@ def render_as_core(
     # A. Core nodes distributed around orbit ring (r=0.28)
     num_core = len(core_nodes)
     for idx, n in enumerate(core_nodes):
+        arrow_color = CALLOUT_ARROW_PALETTE[idx % len(CALLOUT_ARROW_PALETTE)]
         callout_angle = (2.0 * math.pi * idx / max(num_core, 1)) - (math.pi / 2.0)
         callout_r = 0.28
         cx = callout_r * math.cos(callout_angle)
@@ -822,15 +837,15 @@ def render_as_core(
             bbox={
                 "boxstyle": "round,pad=0.2",
                 "fc": "#090d16",
-                "ec": "#38bdf8" if n.asn in highlight_asns else "#64748b",
+                "ec": arrow_color,
                 "lw": 0.7 if n.asn in highlight_asns else 0.5,
                 "alpha": 0.92,
             },
             arrowprops={
                 "arrowstyle": "-|>",
-                "color": "#38bdf8" if n.asn in highlight_asns else "#64748b",
-                "lw": 0.6,
-                "alpha": 0.7,
+                "color": arrow_color,
+                "lw": 0.75,
+                "alpha": 0.85,
                 "mutation_scale": 6,
                 "connectionstyle": "arc3,rad=0.08",
             },
@@ -839,6 +854,7 @@ def render_as_core(
 
     # B. Outer nodes (r >= 0.35, e.g. ITB AS4796, APJII AS7597)
     for idx, n in enumerate(outer_nodes):
+        arrow_color = CALLOUT_ARROW_PALETTE[(num_core + idx) % len(CALLOUT_ARROW_PALETTE)]
         # Stagger radial distance to prevent collision between close nodes
         callout_r = 1.08 + 0.08 * (idx % 2)
         cx = callout_r * math.cos(n.theta)
@@ -866,15 +882,15 @@ def render_as_core(
             bbox={
                 "boxstyle": "round,pad=0.2",
                 "fc": "#090d16",
-                "ec": "#38bdf8" if n.asn in highlight_asns else "#64748b",
+                "ec": arrow_color,
                 "lw": 0.7 if n.asn in highlight_asns else 0.5,
                 "alpha": 0.92,
             },
             arrowprops={
                 "arrowstyle": "-|>",
-                "color": "#38bdf8" if n.asn in highlight_asns else "#64748b",
-                "lw": 0.6,
-                "alpha": 0.7,
+                "color": arrow_color,
+                "lw": 0.75,
+                "alpha": 0.85,
                 "mutation_scale": 6,
                 "connectionstyle": "arc3,rad=0.05",
             },
