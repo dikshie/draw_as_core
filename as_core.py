@@ -15,6 +15,7 @@ import gzip
 import math
 import os
 import urllib.request
+import zlib
 from dataclasses import dataclass, field
 
 import matplotlib.pyplot as plt
@@ -114,6 +115,11 @@ class ASNode:
     y: float = field(init=False, default=0.0)
 
 
+def _asn_seed(asn: int) -> int:
+    """Deterministic pseudo-random integer seed for an ASN across Python sessions."""
+    return zlib.crc32(str(asn).encode("utf-8"))
+
+
 def infer_rir_and_longitude(asn: int) -> tuple[str, str, float]:
     """
     Infers Name, RIR, and approximate Longitude for an ASN based on
@@ -123,9 +129,11 @@ def infer_rir_and_longitude(asn: int) -> tuple[str, str, float]:
         name, rir, lon = WELL_KNOWN_ASES[asn]
         return name, rir, lon
 
+    seed = _asn_seed(asn)
+
     # IANA / RIR allocation range heuristics
     if (36864 <= asn <= 37887) or (327680 <= asn <= 328703):
-        rir, lon = "AFRINIC", 20.0 + (hash(str(asn)) % 30) - 15.0
+        rir, lon = "AFRINIC", 20.0 + (seed % 30) - 15.0
     elif (
         (4608 <= asn <= 4864)
         or (7467 <= asn <= 7722)
@@ -138,14 +146,14 @@ def infer_rir_and_longitude(asn: int) -> tuple[str, str, float]:
         or (58368 <= asn <= 59391)
         or (131072 <= asn <= 141311)
     ):
-        rir, lon = "APNIC", 105.0 + (hash(str(asn)) % 70) - 35.0
+        rir, lon = "APNIC", 105.0 + (seed % 70) - 35.0
     elif (
         (27648 <= asn <= 28671)
         or (52224 <= asn <= 53247)
         or (61440 <= asn <= 62463)
         or (262144 <= asn <= 272383)
     ):
-        rir, lon = "LACNIC", -55.0 + (hash(str(asn)) % 40) - 20.0
+        rir, lon = "LACNIC", -55.0 + (seed % 40) - 20.0
     elif (
         (1257 <= asn <= 1300)
         or (31744 <= asn <= 32767)
@@ -157,9 +165,9 @@ def infer_rir_and_longitude(asn: int) -> tuple[str, str, float]:
         or (59392 <= asn <= 61439)
         or (196608 <= asn <= 212991)
     ):
-        rir, lon = "RIPE", 15.0 + (hash(str(asn)) % 40) - 20.0
+        rir, lon = "RIPE", 15.0 + (seed % 40) - 20.0
     else:
-        rir, lon = "ARIN", -95.0 + (hash(str(asn)) % 50) - 25.0
+        rir, lon = "ARIN", -95.0 + (seed % 50) - 25.0
 
     return f"AS{asn}", rir, float(lon)
 
@@ -171,7 +179,7 @@ def infer_indonesia_region(asn: int) -> tuple[str, str, float]:
         return name, region, lon
 
     # Derive realistic island distribution for Indonesian ASNs
-    seed = hash(str(asn))
+    seed = _asn_seed(asn)
     region_choice = seed % 100
     if region_choice < 55:
         region = "Java"
@@ -320,15 +328,22 @@ def compute_bezier_curve(
 def compute_customer_cones(customer_graph: dict[int, list[int]]) -> dict[int, int]:
     """Computes transitive customer cone size for each provider AS in the customer DAG."""
     cone_sizes: dict[int, int] = {}
+    memo: dict[int, set[int]] = {}
+
     for provider in customer_graph:
         visited: set[int] = set()
         stack = [provider]
         while stack:
             curr = stack.pop()
+            if curr in memo:
+                visited.update(memo[curr])
+                continue
             for child in customer_graph.get(curr, []):
                 if child not in visited:
                     visited.add(child)
                     stack.append(child)
+        visited.discard(provider)
+        memo[provider] = visited
         cone_sizes[provider] = len(visited)
     return cone_sizes
 
@@ -476,14 +491,14 @@ def generate_sample_2020_topology(
         (36903, 37100),
     ]
 
-    np.random.seed(42)
+    rng = np.random.default_rng(42)
     tier1_keys = [3356, 174, 1299, 2914, 6939, 6453, 3257]
     for i in range(1000, 1000 + num_stubs):
         name, rir, lon = infer_rir_and_longitude(i)
-        cone = int(np.random.exponential(scale=35))
+        cone = int(rng.exponential(scale=35))
         nodes[i] = ASNode(i, name, cone, lon, rir)
-        num_upstreams = np.random.choice([1, 2, 3], p=[0.7, 0.22, 0.08])
-        upstreams = np.random.choice(tier1_keys, size=num_upstreams, replace=False)
+        num_upstreams = int(rng.choice([1, 2, 3], p=[0.7, 0.22, 0.08]))
+        upstreams = rng.choice(tier1_keys, size=num_upstreams, replace=False)
         for up in upstreams:
             edges.append((i, int(up)))
 
@@ -495,12 +510,14 @@ def build_country_topology(
     country_code: str = "ID",
     top_n: int = 600,
     highlight_asns: list[int] | None = None,
+    ip_version: int = 4,
+    cache_dir: str = "data",
 ) -> tuple[dict[int, ASNode], list[tuple[int, int]]]:
     """
     Builds a country-specific AS Core topology from CAIDA dataset or local simulation.
     """
     country_code = country_code.upper()
-    country_asns = fetch_country_asns(country_code)
+    country_asns = fetch_country_asns(country_code, cache_dir=cache_dir)
 
     if file_path and os.path.exists(file_path):
         print(f"[*] Loading CAIDA dataset from {file_path} for country '{country_code}'...")
@@ -508,35 +525,77 @@ def build_country_topology(
         cone_sizes = compute_customer_cones(customer_graph)
     else:
         print(f"[*] Generating simulated topology for country '{country_code}'...")
+        rng = np.random.default_rng(42)
         customer_graph = {}
         all_edges = []
         cone_sizes = {}
         if country_code == "ID":
             country_asns = set(INDONESIA_WELL_KNOWN.keys()) | set(range(131000, 131300))
-            for asn in country_asns:
-                cone_sizes[asn] = (
-                    450
-                    if asn == 7713
-                    else (
-                        350
-                        if asn == 4761
+            for asn in sorted(country_asns):
+                if ip_version == 6:
+                    cone_sizes[asn] = (
+                        400
+                        if asn == 7713
                         else (
-                            250
-                            if asn == 17451
-                            else (200 if asn == 7717 else int(np.random.exponential(15)))
+                            300
+                            if asn == 4761
+                            else (
+                                220
+                                if asn == 24203
+                                else (
+                                    180
+                                    if asn == 64302
+                                    else (160 if asn == 7717 else int(rng.exponential(12)))
+                                )
+                            )
                         )
                     )
-                )
-                all_edges.append((asn, 7713))
-                if np.random.rand() > 0.5:
-                    all_edges.append((asn, 4761))
+                    all_edges.append((asn, 7713))
+                    if rng.random() > 0.4:
+                        all_edges.append((asn, 4761))
+                    if asn in (4796, 45833, 45839):
+                        all_edges.append((asn, 64302))
+                        all_edges.append((asn, 4761))
+                else:
+                    cone_sizes[asn] = (
+                        450
+                        if asn == 7713
+                        else (
+                            350
+                            if asn == 4761
+                            else (
+                                250
+                                if asn == 17451
+                                else (200 if asn == 7717 else int(rng.exponential(15)))
+                            )
+                        )
+                    )
+                    all_edges.append((asn, 7713))
+                    if rng.random() > 0.5:
+                        all_edges.append((asn, 4761))
+        else:
+            if not country_asns:
+                country_asns = set(range(60000, 60100))
+            sorted_asns = sorted(country_asns)[:300]
+            country_asns = set(sorted_asns)
+            hubs = sorted_asns[: min(3, len(sorted_asns))]
+            for idx, asn in enumerate(sorted_asns):
+                if idx == 0:
+                    cone_sizes[asn] = 400
+                elif idx == 1:
+                    cone_sizes[asn] = 280
+                elif idx == 2:
+                    cone_sizes[asn] = 180
+                else:
+                    cone_sizes[asn] = int(rng.exponential(15))
+                if hubs and asn != hubs[0]:
+                    all_edges.append((asn, hubs[0]))
+                if len(hubs) > 1 and asn != hubs[1] and rng.random() > 0.5:
+                    all_edges.append((asn, hubs[1]))
 
-    # Filter for country ASNs
-    valid_country_asns = {
-        asn
-        for asn in country_asns
-        if asn in cone_sizes or any(u == asn or v == asn for u, v in all_edges)
-    }
+    # Filter for country ASNs in O(|V| + |E|) time
+    asns_in_edges = {asn for edge in all_edges for asn in edge}
+    valid_country_asns = country_asns & (cone_sizes.keys() | asns_in_edges)
 
     # Sort by customer cone size
     sorted_country_ases = sorted(
@@ -587,6 +646,7 @@ def render_as_core(
     title: str = "IPv4 AS Core Visualization",
     country: str = "GLOBAL",
     highlight_asns: list[int] | None = None,
+    subtitle: str | None = None,
 ) -> plt.Figure:
     """Renders the polar AS Core map replicating CAIDA's aesthetic."""
     prepare_graph_coordinates(nodes, country=country)
@@ -614,14 +674,14 @@ def render_as_core(
 
     # 2. Draw sector axes & labels
     if country == "ID":
-        # Indonesia Island Sectors
+        # Indonesia Island Sectors aligned with longitude projection (95°E - 141°E)
         id_sectors = [
-            ("SUMATRA", math.radians(-60)),
-            ("JAVA", math.radians(0)),
-            ("KALIMANTAN", math.radians(60)),
-            ("BALI & NUSA TENGGARA", math.radians(120)),
-            ("SULAWESI", math.radians(180)),
-            ("MALUKU & PAPUA", math.radians(240)),
+            ("SUMATRA", calculate_angle(100.0, country="ID")),
+            ("JAVA", calculate_angle(108.5, country="ID")),
+            ("KALIMANTAN", calculate_angle(114.0, country="ID")),
+            ("BALI & NUSA TENGGARA", calculate_angle(118.5, country="ID")),
+            ("SULAWESI", calculate_angle(122.5, country="ID")),
+            ("MALUKU & PAPUA", calculate_angle(133.0, country="ID")),
         ]
         for label, theta in id_sectors:
             lx, ly = 1.12 * math.cos(theta), 1.12 * math.sin(theta)
@@ -853,11 +913,14 @@ def render_as_core(
         framealpha=0.9,
     )
 
+    if subtitle is None:
+        subtitle = r"$\mathrm{Radial\ position:}\ r = 1 - \frac{\log(\mathrm{CustomerCone} + 1)}{\log(\mathrm{MaxCone} + 1)} \quad\vert\quad \mathrm{Angular\ position:}\ \theta = \mathrm{Longitude}$"
+
     ax.text(0, 1.20, title, color="#f8fafc", fontsize=14, ha="center", weight="bold")
     ax.text(
         0,
         -1.22,
-        r"$\mathrm{Radial\ position:}\ r = 1 - \frac{\log(\mathrm{CustomerCone} + 1)}{\log(\mathrm{MaxCone} + 1)} \quad\vert\quad \mathrm{Angular\ position:}\ \theta = \mathrm{Longitude}$",
+        subtitle,
         color="#94a3b8",
         fontsize=9,
         ha="center",
@@ -865,10 +928,27 @@ def render_as_core(
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=dpi, facecolor=fig.get_facecolor(), edgecolor="none")
+    plt.close(fig)
     return fig
 
 
-def main():
+def parse_highlight_asns(highlight_arg: str | None, country: str) -> list[int] | None:
+    """Parses comma-separated ASN strings (e.g. 'AS7713,4761') into a list of ints."""
+    if highlight_arg:
+        try:
+            return [
+                int(x.strip().upper().removeprefix("AS"))
+                for x in highlight_arg.split(",")
+                if x.strip()
+            ]
+        except ValueError:
+            return None
+    if country == "ID":
+        return [7713, 4761, 24203, 7597, 7717, 4796, 64302]
+    return None
+
+
+def main(argv: list[str] | None = None):
     parser = argparse.ArgumentParser(
         description="CAIDA IPv4 AS Core Visualizer (Global & Country-Level)"
     )
@@ -899,7 +979,7 @@ def main():
     )
     parser.add_argument("-o", "--output", help="Output PNG path", default=None)
     parser.add_argument("-t", "--title", help="Plot title", default=None)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # Interactive prompt if user didn't pass country via CLI and is in an interactive shell
     country = args.country
@@ -932,18 +1012,7 @@ def main():
             else "CAIDA IPv4 AS Core Topology"
         )
 
-    highlight_asns = None
-    if args.highlight:
-        try:
-            highlight_asns = [
-                int(x.strip().lstrip("AS").lstrip("as"))
-                for x in args.highlight.split(",")
-                if x.strip()
-            ]
-        except ValueError:
-            highlight_asns = None
-    elif country == "ID":
-        highlight_asns = [7713, 4761, 24203, 7597, 7717, 4796, 64302]
+    highlight_asns = parse_highlight_asns(args.highlight, country)
 
     if country != "GLOBAL":
         nodes, edges = build_country_topology(
@@ -954,12 +1023,8 @@ def main():
         )
     else:
         if args.input and os.path.exists(args.input):
-            from as_core import build_topology_from_caida
-
             nodes, edges = build_topology_from_caida(args.input, top_n=args.top)
         else:
-            from as_core import generate_sample_2020_topology
-
             nodes, edges = generate_sample_2020_topology(num_stubs=400)
 
     print(f"[+] Rendering AS Core visualization to {output_filename}...")

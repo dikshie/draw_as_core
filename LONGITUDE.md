@@ -57,6 +57,8 @@ Indonesia spans **$95.0^\circ\text{E}$ (Sabang, Aceh)** to **$141.0^\circ\text{E
 | **Sulawesi** | $118.5^\circ\text{E} - 125.5^\circ\text{E}$ | Makassar ($119.4^\circ\text{E}$), Manado ($124.8^\circ\text{E}$) | **AS136052** (Makassar Cyber) $\to 119.4^\circ\text{E}$ |
 | **Maluku & Papua** | $126.0^\circ\text{E} - 141.0^\circ\text{E}$ | Ambon ($128.1^\circ\text{E}$), Jayapura ($140.7^\circ\text{E}$), Merauke ($140.4^\circ\text{E}$) | **AS138382** (Papua Digital Net) $\to 140.7^\circ\text{E}$ |
 
+In `as_core.py`, Indonesia's longitude span ($[95.0^\circ\text{E}, 141.0^\circ\text{E}]$) is linearly projected across the full $360^\circ$ polar circle ($\theta \in [-\pi/2, 3\pi/2]$), and the six island sector guide lines are placed at each region's representative longitude (`100.0°E`, `108.5°E`, `114.0°E`, `118.5°E`, `122.5°E`, and `133.0°E`). Unknown ASNs without explicit coordinates in `INDONESIA_WELL_KNOWN` or `WELL_KNOWN_ASES` are assigned deterministic longitudes within their RIR or island sector using `zlib.crc32` (`_asn_seed`).
+
 ---
 
 ## 3. Practical APIs to Query Indonesian ASN Longitudes

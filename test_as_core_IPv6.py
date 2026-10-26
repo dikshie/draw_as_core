@@ -10,8 +10,19 @@ from as_core_IPv6 import (
     generate_sample_ipv6_topology,
     infer_indonesia_region,
     load_caida_as_rel,
+    main,
     render_as_core,
 )
+
+
+def _mock_cache(tmp_path, country="ID", asns=None):
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir(exist_ok=True)
+    if asns is None:
+        asns = [7713, 4761, 17451, 24203, 7597, 7717, 4796, 64302]
+    cache_file = cache_dir / f"delegated_{country.upper()}.txt"
+    cache_file.write_text("\n".join(str(a) for a in asns) + "\n", encoding="utf-8")
+    return str(cache_dir)
 
 
 def test_calculate_radius_boundaries():
@@ -78,7 +89,7 @@ def test_load_caida_as_rel(tmp_path):
 300|400|0|bgp
 """
     file_path = str(tmp_path / "sample_v6.as-rel2.txt")
-    with open(file_path, "w") as f:
+    with open(file_path, "w", encoding="utf-8") as f:
         f.write(sample_content)
 
     customer_graph, edges = load_caida_as_rel(file_path)
@@ -115,8 +126,11 @@ def test_infer_indonesia_region():
     assert region == "Java"
 
 
-def test_build_country_topology():
-    nodes, edges = build_country_topology(file_path=None, country_code="ID", top_n=50)
+def test_build_country_topology(tmp_path):
+    cache_dir = _mock_cache(tmp_path, "ID")
+    nodes, edges = build_country_topology(
+        file_path=None, country_code="ID", top_n=50, cache_dir=cache_dir
+    )
     assert 7713 in nodes  # Telkom Indonesia
     assert 4761 in nodes  # Indosat
     assert 24203 in nodes  # XL Axiata
@@ -133,7 +147,10 @@ def test_build_country_topology():
 
 
 def test_render_as_core_ipv6_integration(tmp_path):
-    nodes, edges = build_country_topology(file_path=None, country_code="ID", top_n=30)
+    cache_dir = _mock_cache(tmp_path, "ID")
+    nodes, edges = build_country_topology(
+        file_path=None, country_code="ID", top_n=30, cache_dir=cache_dir
+    )
     out_file = str(tmp_path / "test_id_ipv6_core.png")
 
     highlight = [7713, 4761, 24203, 7597, 7717, 4796, 64302]
@@ -149,3 +166,9 @@ def test_render_as_core_ipv6_integration(tmp_path):
     assert fig is not None
     assert os.path.exists(out_file)
     assert os.path.getsize(out_file) > 10000
+
+
+def test_cli_main_ipv6(tmp_path):
+    out_file = str(tmp_path / "cli_v6_out.png")
+    main(["-c", "GLOBAL", "-n", "20", "-s", "AS6939,3356", "-o", out_file])
+    assert os.path.exists(out_file)

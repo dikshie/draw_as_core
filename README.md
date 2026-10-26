@@ -121,11 +121,12 @@ CAIDA provides a GraphQL API to retrieve customer cone sizes, ranks, and organiz
 
 ## 3. Project Structure
 
-* **[`as_core.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/as_core.py)**: Main IPv4 AS Core module containing polar coordinate calculations, Bézier edge generation, customer cone analysis, and rendering pipeline.
-* **[`as_core_IPv6.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/as_core_IPv6.py)**: IPv6 AS Core module tailored for IPv6 routing topologies, customer cones, and dominant IPv6 backbones (e.g., Hurricane Electric AS6939).
-* **[`test_as_core.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/test_as_core.py)**: Unit test suite for the IPv4 pipeline.
-* **[`test_as_core_IPv6.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/test_as_core_IPv6.py)**: Unit test suite for the IPv6 pipeline.
+* **[`as_core.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/as_core.py)**: Core IPv4 & shared visualization engine containing polar coordinate calculations, deterministic CRC32 ASN seeding, memoized customer cone traversal, Bézier edge generation, and the Matplotlib rendering pipeline.
+* **[`as_core_IPv6.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/as_core_IPv6.py)**: IPv6 AS Core CLI and topology generator built on top of `as_core.py`, tailored for IPv6 routing topologies, customer cones, and dominant IPv6 backbones (e.g., Hurricane Electric AS6939).
+* **[`test_as_core.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/test_as_core.py)**: Offline unit and integration test suite for the IPv4 and shared pipeline (including `.txt`, `.bz2`, and `.gz` dataset parsing, cyclic graph handling, and CLI execution).
+* **[`test_as_core_IPv6.py`](file:///Users/dikshie/VIRTUAL/draw_as_core/test_as_core_IPv6.py)**: Offline unit and integration test suite for the IPv6 pipeline.
 * **[`pyproject.toml`](file:///Users/dikshie/VIRTUAL/draw_as_core/pyproject.toml)**: Project configuration for `uv`, `Ruff` linter/formatter, and `pytest`.
+* **[`CHANGELOG.md`](file:///Users/dikshie/VIRTUAL/draw_as_core/CHANGELOG.md)**: Release history and versioned changelog.
 * **[`.github/workflows/ci.yml`](file:///Users/dikshie/VIRTUAL/draw_as_core/.github/workflows/ci.yml)**: Automated CI/CD workflow running Ruff quality checks, multi-Python test matrices (3.10–3.13), and smoke builds.
 * **[`LONGITUDE.md`](file:///Users/dikshie/VIRTUAL/draw_as_core/LONGITUDE.md)**: Technical guide on ASN geolocation and prefix-weighted longitude centroid computation.
 
