@@ -93,6 +93,7 @@ def generate_sample_ipv6_topology(
         16509: 22000,  # Amazon AWS
         8075: 21000,  # Microsoft
         20940: 20000,  # Akamai
+        7713: 18500,  # PT Telkom
     }
 
     for asn, (name, rir, lon) in WELL_KNOWN_ASES.items():
@@ -156,6 +157,10 @@ def generate_sample_ipv6_topology(
         (36903, 6939),
         (36903, 1299),
         (36903, 37100),
+        (7713, 6939),
+        (7713, 2914),
+        (7713, 6453),
+        (7713, 3356),
     ]
 
     rng = np.random.default_rng(42)

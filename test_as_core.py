@@ -181,6 +181,7 @@ def test_build_country_topology(tmp_path):
 def test_parse_highlight_asns():
     assert parse_highlight_asns("AS7713, as4761, 24203", "GLOBAL") == [7713, 4761, 24203]
     assert parse_highlight_asns("invalid", "GLOBAL") is None
+    assert parse_highlight_asns(None, "GLOBAL") == [7713]
     assert 7713 in parse_highlight_asns(None, "ID")
 
 

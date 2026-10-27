@@ -101,6 +101,8 @@ def test_generate_sample_ipv6_topology():
     nodes, edges = generate_sample_ipv6_topology(num_stubs=50)
     assert 6939 in nodes  # Hurricane Electric
     assert 3356 in nodes  # Lumen
+    assert 7713 in nodes  # PT Telkom
+    assert "PT Telkom" in nodes[7713].name
     # In IPv6, Hurricane Electric (AS6939) has larger cone than Lumen (AS3356)
     assert nodes[6939].cone_size > nodes[3356].cone_size
     assert len(nodes) > 50

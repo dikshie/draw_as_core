@@ -85,6 +85,7 @@ WELL_KNOWN_ASES = {
     4837: ("China Unicom", "APNIC", 116.4),
     4134: ("Chinanet", "APNIC", 116.4),
     7575: ("AARNet", "APNIC", 149.1),
+    7713: ("PT Telkom", "APNIC", 106.8),
 }
 
 # Well-known Indonesian ASes with names and island regions
@@ -503,6 +504,10 @@ def generate_sample_2020_topology(
         (37100, 3356),
         (36903, 1299),
         (36903, 37100),
+        (7713, 2914),
+        (7713, 6453),
+        (7713, 3356),
+        (7713, 6939),
     ]
 
     rng = np.random.default_rng(42)
@@ -667,6 +672,8 @@ def render_as_core(
 
     if country == "ID" and highlight_asns is None:
         highlight_asns = [7713, 4761, 24203, 7597, 7717, 4796, 64302]
+    elif country == "GLOBAL" and highlight_asns is None:
+        highlight_asns = [7713]
     elif highlight_asns is None:
         highlight_asns = []
 
@@ -961,6 +968,8 @@ def parse_highlight_asns(highlight_arg: str | None, country: str) -> list[int] |
             return None
     if country == "ID":
         return [7713, 4761, 24203, 7597, 7717, 4796, 64302]
+    if country == "GLOBAL":
+        return [7713]
     return None
 
 
